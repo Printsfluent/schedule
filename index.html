@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Rhythm" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#0a0e14" />
+    <script>
+      (function () {
+        try {
+          var raw = null;
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf('rhythm-app-v2') === 0) {
+              raw = localStorage.getItem(k);
+              break;
+            }
+          }
+          if (!raw) raw = localStorage.getItem('schedule-app-state');
+          var theme = 'dark';
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            theme = parsed && parsed.settings && parsed.settings.theme ? parsed.settings.theme : 'dark';
+          }
+          var resolved =
+            theme === 'system'
+              ? window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+              : theme;
+          document.documentElement.dataset.theme = resolved;
+          document.documentElement.style.colorScheme = resolved;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', resolved === 'dark' ? '#0a0e14' : '#f4f6f9');
+        } catch (e) {}
+      })();
+    </script>
+    <title>Rhythm</title>
+    <meta name="description" content="Mobile-first schedule & productivity for remote work, fitness, study, and social balance." />
+    <meta property="og:title" content="Rhythm — Daily Schedule" />
+    <meta property="og:description" content="Balance remote work, study, gym, and rest. Works on phone and desktop." />
+    <meta property="og:type" content="website" />
+  </head>
+  <body>
+    <div id="root">
+      <p style="margin:0;padding:24px;background:var(--rhythm-bg,#0a0e14);color:var(--rhythm-muted,#8b9cb3);font-family:-apple-system,system-ui,sans-serif">
+        Loading Rhythm…
+      </p>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

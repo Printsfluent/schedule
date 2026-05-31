@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732" role="img" aria-label="Rhythm">
+  <rect width="2732" height="2732" fill="#0a0e14"/>
+  <ellipse cx="1366" cy="1280" rx="420" ry="300" fill="#3dd68c" opacity="0.07"/>
+  <path
+    d="M 862 1366
+       H 1096
+       L 1228 1016
+       L 1388 1768
+       L 1548 1120
+       L 1708 1584
+       L 1836 1048
+       L 1964 1366
+       H 2198"
+    fill="none"
+    stroke="#3dd68c"
+    stroke-width="72"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="1548" cy="1120" r="44" fill="#3dd68c"/>
+  <text
+    x="1366"
+    y="1820"
+    text-anchor="middle"
+    fill="#ffffff"
+    font-family="system-ui, -apple-system, sans-serif"
+    font-size="128"
+    font-weight="700"
+    letter-spacing="-2"
+  >
+    Rhythm
+  </text>
+</svg>
