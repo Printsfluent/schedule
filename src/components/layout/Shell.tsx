@@ -15,7 +15,7 @@ const TABS: { id: TabId; to: string; icon: string; label: string }[] = [
 export function TabBar() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-tabbar pb-[env(safe-area-inset-bottom)] backdrop-blur-2xl">
-      <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1.5">
+      <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1">
         {TABS.map((tab) => (
           <NavLink
             key={tab.id}
@@ -26,14 +26,14 @@ export function TabBar() {
             {({ isActive }) => (
               <>
                 <span
-                  className={`flex size-11 items-center justify-center rounded-2xl text-[1.65rem] leading-none transition-all ${isActive ? 'bg-accent-soft scale-105' : ''}`}
+                  className={`flex size-10 items-center justify-center rounded-xl text-xl leading-none transition-all ${isActive ? 'bg-accent-soft scale-105' : ''}`}
                   style={{ color: 'unset' }}
                   aria-hidden
                 >
                   {tab.icon}
                 </span>
                 <span
-                  className={`text-xs font-medium leading-none transition-colors ${isActive ? 'text-accent' : 'text-subtle'}`}
+                  className={`text-[11px] font-medium leading-none transition-colors ${isActive ? 'text-accent' : 'text-subtle'}`}
                 >
                   {tab.label}
                 </span>
