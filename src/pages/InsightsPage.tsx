@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { AlarmSyncPanel } from '../components/AlarmSyncPanel'
 import { ResetAppDataPanel } from '../components/ResetAppDataPanel'
 import { RoutineSettingsPanel } from '../components/RoutineSettingsPanel'
+import { AccountPanel } from '../components/AccountPanel'
 import { ShareRoutinePanel } from '../components/ShareRoutinePanel'
 import { ThemeSettingsPanel } from '../components/ThemeSettingsPanel'
 import { BarChart, LineChart, StatGrid } from '../components/charts/Charts'
@@ -305,6 +306,8 @@ export function InsightsPage({ testScheduledAt = null }: InsightsPageProps) {
 
         {tab === 'settings' && (
           <>
+            <AccountPanel />
+
             <RoutineSettingsPanel settings={state.settings} onChange={updateSettings} />
 
             <ShareRoutinePanel state={state} onImport={importFriendRoutine} />

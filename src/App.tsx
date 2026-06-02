@@ -1,5 +1,8 @@
 import { useEffect, useMemo } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { AuthLoading } from './components/AuthLoading'
+import { useAuth } from './context/AuthContext'
+import { LoginPage } from './pages/LoginPage'
 import { AlarmOverlay } from './components/AlarmOverlay'
 import { EndOfDayPlanPrompt } from './components/EndOfDayPlanPrompt'
 import { MorningCalendarOverlay } from './components/MorningCalendarOverlay'
@@ -24,6 +27,11 @@ import { SchedulePage } from './pages/SchedulePage'
 import { useStore } from './store/useStore'
 
 export default function App() {
+  const { user, loading: authLoading } = useAuth()
+  const location = useLocation()
+  const isLoginRoute =
+    location.pathname === '/login' || location.pathname.endsWith('/login')
+
   const {
     state,
     todayKey,
@@ -129,6 +137,18 @@ export default function App() {
 
   const eveningBlocking = eveningFlow !== null
   const appBlocked = morningBlocking || eveningBlocking
+
+  if (authLoading) {
+    return <AuthLoading />
+  }
+
+  if (isLoginRoute) {
+    return <LoginPage />
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
 
   return (
     <AlarmActionsContext.Provider

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { formatDisplayDate } from '../../lib/dates'
+import { useAuth } from '../../context/AuthContext'
 import { RhythmLogo } from '../RhythmLogo'
 import type { TabId } from '../../types'
 
@@ -79,6 +80,7 @@ export function TabBar() {
 }
 
 export function AppHeader() {
+  const { user } = useAuth()
   const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
@@ -93,9 +95,14 @@ export function AppHeader() {
           <RhythmLogo />
           <span className="text-lg font-bold tracking-tight text-fg">Rhythm</span>
         </div>
-        <time dateTime={now.toISOString()} className="shrink-0 text-right text-sm font-medium leading-tight text-accent">
-          {formatDisplayDate(now)}
-        </time>
+        <div className="shrink-0 text-right">
+          {user && (
+            <div className="text-[11px] font-medium text-subtle">@{user.username}</div>
+          )}
+          <time dateTime={now.toISOString()} className="text-sm font-medium leading-tight text-accent">
+            {formatDisplayDate(now)}
+          </time>
+        </div>
       </div>
     </header>
   )
