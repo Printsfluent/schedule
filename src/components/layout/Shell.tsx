@@ -8,9 +8,41 @@ const TABS: { id: TabId; to: string; icon: string; label: string }[] = [
   { id: 'home', to: '/', icon: '🏠', label: 'Home' },
   { id: 'schedule', to: '/schedule', icon: '📅', label: 'Plan' },
   { id: 'focus', to: '/focus', icon: '🎯', label: 'Focus' },
-  { id: 'habits', to: '/habits', icon: '🌿', label: 'Habits' },
+  { id: 'habits', to: '/habits', icon: '', label: 'Habits' },
   { id: 'insights', to: '/insights', icon: '📊', label: 'Insights' },
 ]
+
+function HabitsLeafIcon() {
+  return (
+    <svg
+      className="size-[17px] shrink-0"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <path
+        d="M12 3C9 7 5 9 5 14.5 5 18 7.8 20.5 12 21.5 16.2 20.5 19 18 19 14.5 19 9 15 7 12 3Z"
+        fill="#5ecf8f"
+      />
+      <path
+        d="M12 8.5V21"
+        stroke="#3dd68c"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function TabIcon({ tabId, emoji }: { tabId: TabId; emoji: string }) {
+  if (tabId === 'habits') return <HabitsLeafIcon />
+  return (
+    <span className="leading-none" style={{ fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif' }}>
+      {emoji}
+    </span>
+  )
+}
 
 export function TabBar() {
   return (
@@ -30,7 +62,7 @@ export function TabBar() {
                   style={{ color: 'unset' }}
                   aria-hidden
                 >
-                  {tab.icon}
+                  <TabIcon tabId={tab.id} emoji={tab.icon} />
                 </span>
                 <span
                   className={`text-[10px] font-medium leading-none transition-colors ${isActive ? 'text-accent' : 'text-subtle'}`}
