@@ -21,8 +21,10 @@ function lanIp(): string | null {
   return null
 }
 
+const webBase = process.env.VITE_BASE_PATH ?? '/'
+
 export default defineConfig({
-  base: isCapacitorBuild ? './' : '/',
+  base: isCapacitorBuild ? './' : webBase,
   plugins: [
     ...(useHttps ? [basicSsl()] : []),
     react(),

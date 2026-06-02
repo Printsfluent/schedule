@@ -18,7 +18,7 @@ export function ShareRoutinePanel({ state, onImport }: Props) {
     setStatus(null)
     const payload = buildSharePayload(state, todayKey)
     const ok = await shareRoutineWithFriends(payload)
-    setStatus(ok ? 'Shared or copied — send to a friend via WhatsApp, iMessage, or email.' : 'Could not share. Try again.')
+    setStatus(ok ? 'Link copied — send to a friend via WhatsApp, iMessage, or email.' : 'Could not share. Try again.')
   }
 
   const handleImport = () => {

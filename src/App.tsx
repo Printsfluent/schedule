@@ -72,16 +72,23 @@ export default function App() {
       window.history.replaceState({}, '', window.location.pathname)
       return
     }
+
     const params = new URLSearchParams(window.location.search)
+    const dParam = params.get('d')
+    const rParam = params.get('r')
     const dataParam = params.get('data')
     const hashQuery = window.location.hash.replace(/^#\/?/, '')
-    const raw = dataParam
-      ? `data=${dataParam}`
-      : hashQuery.includes('data=')
-        ? hashQuery
-        : window.location.href.includes('rhythm://share')
-          ? window.location.href
-          : ''
+    const raw = dParam
+      ? `d=${dParam}`
+      : rParam
+        ? `r=${rParam}`
+        : dataParam
+          ? `data=${dataParam}`
+          : hashQuery.includes('d=') || hashQuery.includes('r=') || hashQuery.includes('data=')
+            ? hashQuery
+            : window.location.href.includes('rhythm://share')
+              ? window.location.href
+              : ''
     if (!raw) return
     const payload = decodeSharePayload(raw)
     if (payload) {
