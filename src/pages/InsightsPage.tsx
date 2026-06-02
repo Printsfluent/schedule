@@ -306,8 +306,6 @@ export function InsightsPage({ testScheduledAt = null }: InsightsPageProps) {
 
         {tab === 'settings' && (
           <>
-            <AccountPanel />
-
             <RoutineSettingsPanel settings={state.settings} onChange={updateSettings} />
 
             <ShareRoutinePanel state={state} onImport={importFriendRoutine} />
@@ -322,6 +320,8 @@ export function InsightsPage({ testScheduledAt = null }: InsightsPageProps) {
               theme={state.settings.theme}
               onChange={(theme) => updateSettings({ theme })}
             />
+
+            <AccountPanel />
 
             <ResetAppDataPanel />
           </>
