@@ -1,9 +1,4 @@
-import { bootstrapBrowserCompat } from './lib/browserCompat'
-import { bootstrapTheme } from './lib/theme'
-
-bootstrapBrowserCompat()
-bootstrapTheme()
-
+import { bootstrapApp } from './bootstrap'
 import { StrictMode } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { createRoot } from 'react-dom/client'
@@ -28,14 +23,18 @@ if (import.meta.env.DEV && !Capacitor.isNativePlatform()) {
   }
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </BrowserRouter>
-    </ErrorBoundary>
-  </StrictMode>,
-)
+function mount() {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <ErrorBoundary>
+        <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </BrowserRouter>
+      </ErrorBoundary>
+    </StrictMode>,
+  )
+}
+
+void bootstrapApp().then(mount)

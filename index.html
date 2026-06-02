@@ -13,6 +13,20 @@
     <script>
       (function () {
         try {
+          var authGate = 'rhythm-auth-gate-v1';
+          if (!localStorage.getItem(authGate)) {
+            for (var j = localStorage.length - 1; j >= 0; j--) {
+              var sk = localStorage.key(j);
+              if (sk && sk.indexOf('sb-') === 0) localStorage.removeItem(sk);
+            }
+            localStorage.setItem(authGate, '1');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <script>
+      (function () {
+        try {
           var raw = null;
           for (var i = 0; i < localStorage.length; i++) {
             var k = localStorage.key(i);

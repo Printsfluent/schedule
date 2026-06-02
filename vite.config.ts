@@ -22,9 +22,14 @@ function lanIp(): string | null {
 }
 
 const webBase = process.env.VITE_BASE_PATH ?? '/'
+const appBuildId =
+  process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? `local-${Date.now()}`
 
 export default defineConfig({
   base: isCapacitorBuild ? './' : webBase,
+  define: {
+    __APP_BUILD_ID__: JSON.stringify(appBuildId),
+  },
   plugins: [
     ...(useHttps ? [basicSsl()] : []),
     react(),
@@ -35,6 +40,7 @@ export default defineConfig({
           VitePWA({
       devOptions: { enabled: useHttps, type: 'module' },
       registerType: 'autoUpdate',
+      injectRegister: 'auto',
       includeAssets: ['favicon.svg', 'logo.svg'],
       manifest: {
         name: 'Rhythm',
@@ -49,9 +55,22 @@ export default defineConfig({
         ],
       },
       workbox: {
+        cacheId: 'rhythm-auth-v2',
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
         importScripts: ['rhythm-plan-alarms.js'],
         runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'rhythm-pages',
+              networkTimeoutSeconds: 5,
+              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 },
+            },
+          },
           {
             urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
             handler: 'CacheFirst',
