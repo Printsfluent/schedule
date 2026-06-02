@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { applyAuthSessionResetIfNeeded } from '../lib/auth/sessionReset'
 import { isValidEmail, isValidUsername } from '../lib/auth/validation'
 import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient'
 
@@ -67,12 +68,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    void supabase.auth.getSession().then(({ data }) => {
+    void (async () => {
+      await applyAuthSessionResetIfNeeded(supabase)
+      const { data } = await supabase.auth.getSession()
       if (!cancelled) {
         applySession(data.session)
         setLoading(false)
       }
-    })
+    })()
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       applySession(session)
     })
