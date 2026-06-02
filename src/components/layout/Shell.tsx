@@ -8,7 +8,7 @@ const TABS: { id: TabId; to: string; icon: string; label: string }[] = [
   { id: 'home', to: '/', icon: '🏠', label: 'Home' },
   { id: 'schedule', to: '/schedule', icon: '📅', label: 'Plan' },
   { id: 'focus', to: '/focus', icon: '🎯', label: 'Focus' },
-  { id: 'habits', to: '/habits', icon: '🌿', label: 'Habits' },
+  { id: 'habits', to: '/habits', icon: '✅', label: 'Habits' },
   { id: 'insights', to: '/insights', icon: '📊', label: 'Insights' },
 ]
 
@@ -21,19 +21,22 @@ export function TabBar() {
             key={tab.id}
             to={tab.to}
             end={tab.to === '/'}
-            className={({ isActive }) =>
-              `flex min-w-0 flex-1 flex-col items-center gap-1 py-2 text-xs font-medium transition-colors ${isActive ? 'text-accent' : 'text-subtle'}`
-            }
+            className="flex min-w-0 flex-1 flex-col items-center gap-1 py-2"
           >
             {({ isActive }) => (
               <>
                 <span
                   className={`flex size-11 items-center justify-center rounded-2xl text-[1.65rem] leading-none transition-all ${isActive ? 'bg-accent-soft scale-105' : ''}`}
+                  style={{ color: 'unset' }}
                   aria-hidden
                 >
                   {tab.icon}
                 </span>
-                <span className="leading-none">{tab.label}</span>
+                <span
+                  className={`text-xs font-medium leading-none transition-colors ${isActive ? 'text-accent' : 'text-subtle'}`}
+                >
+                  {tab.label}
+                </span>
               </>
             )}
           </NavLink>
