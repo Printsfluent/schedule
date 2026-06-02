@@ -137,7 +137,7 @@ export default function App() {
       <div className="mx-auto min-h-screen min-h-[100dvh] max-w-lg bg-base text-fg">
         {!appBlocked && (
           <>
-            <main className="pb-[calc(5rem+env(safe-area-inset-bottom))]">
+            <main className="pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
               <AppHeader />
               <Routes>
                 <Route path="/" element={<DashboardPage />} />

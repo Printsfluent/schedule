@@ -157,9 +157,20 @@ function migrate(raw: Partial<AppState>): AppState {
     const timeBlocks = Array.isArray(raw.timeBlocks) && raw.timeBlocks.length > 0
       ? raw.timeBlocks.filter((b) => b && typeof b.id === 'string')
       : base.timeBlocks
-    const habits = Array.isArray(raw.habits) && raw.habits.length > 0
+    const migratedHabits = Array.isArray(raw.habits)
       ? raw.habits.filter((h) => h && typeof h.id === 'string').map(stripHabit)
-      : base.habits
+      : []
+    const habits =
+      migratedHabits.length > 0
+        ? migratedHabits.map((h) => {
+            const fallback = base.habits.find((d) => d.id === h.id)
+            return {
+              ...h,
+              emoji: h.emoji || fallback?.emoji || '✓',
+              name: h.name || fallback?.name || 'Habit',
+            }
+          })
+        : base.habits
     const migrated: AppState = {
       ...base,
       timeBlocks,

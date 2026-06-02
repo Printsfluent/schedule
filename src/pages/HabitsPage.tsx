@@ -78,6 +78,13 @@ export function HabitsPage() {
         </div>
 
         <div className="space-y-3">
+          {state.habits.length === 0 && (
+            <Card>
+              <p className="text-center text-sm text-subtle">
+                No habits yet. Refresh the page or reset app data in Insights if this looks wrong.
+              </p>
+            </Card>
+          )}
           {state.habits.map((habit) => {
             const done = isHabitComplete(habit, todayLog, todayBlocks)
             const history = habitHistory(habit.id)
@@ -87,12 +94,13 @@ export function HabitsPage() {
               <Card key={habit.id} glow={done ? CATEGORY_COLORS[habit.category] : undefined}>
                 <div className="flex items-center gap-3">
                   <div
-                    className="flex size-12 shrink-0 items-center justify-center rounded-2xl text-2xl"
+                    className="flex size-14 shrink-0 items-center justify-center rounded-2xl text-[2rem] leading-none"
                     style={{
                       background: done ? `${CATEGORY_COLORS[habit.category]}25` : 'rgba(255,255,255,0.04)',
                     }}
+                    aria-hidden
                   >
-                    {habit.emoji}
+                    {habit.emoji || '✓'}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="font-semibold">{habit.name}</div>
@@ -110,12 +118,12 @@ export function HabitsPage() {
                   />
                 </div>
 
-                <div className="mt-3 flex gap-1">
+                <div className="mt-3 flex gap-1.5">
                   {history.map((d) => (
                     <div
                       key={d.key}
                       title={d.key}
-                      className="h-2 flex-1 rounded-full transition-all"
+                      className="h-3.5 min-w-[6px] flex-1 rounded-full transition-all"
                       style={{
                         background: d.done
                           ? CATEGORY_COLORS[habit.category]

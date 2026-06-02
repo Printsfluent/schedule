@@ -8,31 +8,32 @@ const TABS: { id: TabId; to: string; icon: string; label: string }[] = [
   { id: 'home', to: '/', icon: '🏠', label: 'Home' },
   { id: 'schedule', to: '/schedule', icon: '📅', label: 'Plan' },
   { id: 'focus', to: '/focus', icon: '🎯', label: 'Focus' },
-  { id: 'habits', to: '/habits', icon: '✓', label: 'Habits' },
+  { id: 'habits', to: '/habits', icon: '🌿', label: 'Habits' },
   { id: 'insights', to: '/insights', icon: '📊', label: 'Insights' },
 ]
 
 export function TabBar() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-tabbar pb-[env(safe-area-inset-bottom)] backdrop-blur-2xl">
-      <div className="mx-auto flex max-w-lg items-stretch justify-around px-2 pt-1">
+      <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1.5">
         {TABS.map((tab) => (
           <NavLink
             key={tab.id}
             to={tab.to}
             end={tab.to === '/'}
             className={({ isActive }) =>
-              `flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${isActive ? 'text-accent' : 'text-subtle'}`
+              `flex min-w-0 flex-1 flex-col items-center gap-1 py-2 text-xs font-medium transition-colors ${isActive ? 'text-accent' : 'text-subtle'}`
             }
           >
             {({ isActive }) => (
               <>
                 <span
-                  className={`flex size-8 items-center justify-center rounded-xl text-base transition-all ${isActive ? 'bg-accent-soft scale-110' : ''}`}
+                  className={`flex size-11 items-center justify-center rounded-2xl text-[1.65rem] leading-none transition-all ${isActive ? 'bg-accent-soft scale-105' : ''}`}
+                  aria-hidden
                 >
                   {tab.icon}
                 </span>
-                <span>{tab.label}</span>
+                <span className="leading-none">{tab.label}</span>
               </>
             )}
           </NavLink>
