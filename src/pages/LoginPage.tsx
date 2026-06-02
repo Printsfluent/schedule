@@ -19,7 +19,7 @@ function SupabaseSetupNotice() {
       </p>
       <pre className="mt-3 overflow-x-auto rounded-xl bg-inset p-3 text-[11px] text-muted">
         {`VITE_SUPABASE_URL=https://xxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key`}
+VITE_SUPABASE_ANON_KEY=your-anon-or-publishable-key`}
       </pre>
       <p className="mt-3 text-[11px] leading-relaxed text-faint">
         In Supabase: Authentication → Providers → enable Email. For quick testing, disable “Confirm email”
