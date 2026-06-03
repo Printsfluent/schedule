@@ -262,7 +262,7 @@ export function SchedulePage() {
                       onClick={() => handleDeleteBlock(block)}
                       className="rounded-lg bg-red-500/15 px-2 py-1 text-[10px] text-red-400"
                     >
-                      Delete
+                      Del
                     </button>
                     <button
                       type="button"
@@ -394,7 +394,7 @@ export function SchedulePage() {
                   onClick={() => handleDeleteBlock(editing)}
                   className="rounded-2xl bg-red-500/15 px-4 py-3 text-sm text-red-400"
                 >
-                  Delete
+                  Del
                 </button>
                 <button
                   type="button"
