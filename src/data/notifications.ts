@@ -10,7 +10,7 @@ export interface ScheduleReminder {
 export const SCHEDULE_REMINDERS: ScheduleReminder[] = [
   { id: 'wake', hour: 6, minute: 30, label: 'Rhythm — Good morning', body: 'Log your sleep to start the day', weekdaysOnly: true },
   { id: 'study', hour: 8, minute: 0, label: 'Rhythm — Study time', body: 'Programming deep focus — before work drains you.', weekdaysOnly: true },
-  { id: 'work-am', hour: 10, minute: 30, label: 'Rhythm — Remote work', body: 'First work block. Check power & internet first.', weekdaysOnly: true },
+  { id: 'work-am', hour: 10, minute: 30, label: 'Rhythm — Work', body: 'First work block. Check power & internet first.', weekdaysOnly: true },
   { id: 'lunch', hour: 14, minute: 30, label: 'Rhythm — Lunch break', body: 'Eat and rest. No guilt.', weekdaysOnly: true },
   { id: 'gym', hour: 17, minute: 30, label: 'Rhythm — Gym', body: 'Separator between work stress and personal life.', weekdaysOnly: true },
   { id: 'fun', hour: 20, minute: 0, label: 'Rhythm — Fun time', body: 'Friends, gaming, football — scheduled joy.', weekdaysOnly: true },

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { AlarmSyncPanel } from '../components/AlarmSyncPanel'
 import { ResetAppDataPanel } from '../components/ResetAppDataPanel'
 import { RoutineSettingsPanel } from '../components/RoutineSettingsPanel'
+import { AppAboutSummary } from '../components/AppAboutSummary'
 import { AccountPanel } from '../components/AccountPanel'
 import { ShareRoutinePanel } from '../components/ShareRoutinePanel'
 import { ThemeSettingsPanel } from '../components/ThemeSettingsPanel'
@@ -84,7 +85,7 @@ export function InsightsPage({ testScheduledAt = null }: InsightsPageProps) {
                 {
                   label: 'Focus',
                   value: formatEventStat(weekStats.focusSessions, weekStats.focusHours * 60),
-                  sub: 'remote work',
+                  sub: 'work',
                 },
                 {
                   label: 'Workouts',
@@ -189,7 +190,7 @@ export function InsightsPage({ testScheduledAt = null }: InsightsPageProps) {
                   {
                     label: 'Focus',
                     value: formatEventStat(monthStats.focusSessions, monthStats.focusHours * 60),
-                    sub: 'remote work',
+                    sub: 'work',
                   },
                   {
                     label: 'Workouts',
@@ -306,6 +307,8 @@ export function InsightsPage({ testScheduledAt = null }: InsightsPageProps) {
 
         {tab === 'settings' && (
           <>
+            <AppAboutSummary />
+
             <RoutineSettingsPanel settings={state.settings} onChange={updateSettings} />
 
             <ShareRoutinePanel state={state} onImport={importFriendRoutine} />

@@ -25,9 +25,9 @@ export const DEFAULT_WEEKDAY_BLOCKS: Omit<TimeBlock, 'id'>[] = [
   { startMinutes: 7 * 60, durationMinutes: 30, label: 'Walk / stretch / music', category: 'health', recurring: 'weekday', enabled: true },
   { startMinutes: 7 * 60 + 30, durationMinutes: 30, label: 'Breakfast + messages', category: 'life', recurring: 'weekday', enabled: true },
   { startMinutes: 8 * 60, durationMinutes: 120, label: 'Programming study', category: 'study', recurring: 'weekday', enabled: true },
-  { startMinutes: 10 * 60 + 30, durationMinutes: 240, label: 'Remote work', category: 'work', recurring: 'weekday', enabled: true },
+  { startMinutes: 10 * 60 + 30, durationMinutes: 240, label: 'Work', category: 'work', recurring: 'weekday', enabled: true },
   { startMinutes: 14 * 60 + 30, durationMinutes: 30, label: 'Lunch + rest', category: 'rest', recurring: 'weekday', enabled: true },
-  { startMinutes: 15 * 60, durationMinutes: 120, label: 'Remote work', category: 'work', recurring: 'weekday', enabled: true },
+  { startMinutes: 15 * 60, durationMinutes: 120, label: 'Work', category: 'work', recurring: 'weekday', enabled: true },
   { startMinutes: 17 * 60, durationMinutes: 30, label: 'Relax / reset', category: 'rest', recurring: 'weekday', enabled: true },
   { startMinutes: 17 * 60 + 30, durationMinutes: 90, label: 'Gym', category: 'health', recurring: 'weekday', enabled: true },
   { startMinutes: 19 * 60 + 30, durationMinutes: 30, label: 'Dinner', category: 'life', recurring: 'weekday', enabled: true },
@@ -74,7 +74,7 @@ export const MOTIVATION_QUOTES = [
   { text: 'Power out? Show up anyway. One win is enough.', author: 'Rhythm' },
   { text: 'Gym after work — leave the stress at the desk.', author: 'Rhythm' },
   { text: 'You don\'t need a perfect day. You need a real one.', author: 'Rhythm' },
-  { text: 'Remote work is freedom. Structure makes it work.', author: 'Rhythm' },
+  { text: 'Work is freedom. Structure makes it work.', author: 'Rhythm' },
 ]
 
 export { block }

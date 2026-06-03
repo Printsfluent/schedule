@@ -21,7 +21,8 @@ import {
 import { skipEmailVerification } from '../lib/auth/config'
 import { messageFromUnknownError } from '../lib/auth/errors'
 import { applyAuthSessionResetIfNeeded } from '../lib/auth/sessionReset'
-import { isValidEmail, isValidUsername } from '../lib/auth/validation'
+import { resolveAuthIdentifier } from '../lib/auth/resolveAuthIdentifier'
+import { isValidUsername } from '../lib/auth/validation'
 import { emailVerificationContinueUrl } from '../lib/auth/verificationUrl'
 import { loginPath, redirectToLoginIfGuest } from '../lib/auth/forceLoginGate'
 import { getFirebaseAuth, isFirebaseConfigured } from '../lib/firebase'
@@ -49,8 +50,8 @@ type AuthContextValue = {
   loading: boolean
   authConfigured: boolean
   skipEmailVerification: boolean
-  signIn: (email: string, password: string) => Promise<SignInResult>
-  signUp: (email: string, username: string, password: string) => Promise<SignUpResult>
+  signIn: (identifier: string, password: string) => Promise<SignInResult>
+  signUp: (identifier: string, password: string) => Promise<SignUpResult>
   signInWithGoogle: () => Promise<SignInResult>
   refreshEmailVerification: () => Promise<boolean>
   resendVerificationEmail: () => Promise<string | null>
@@ -147,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [applyFirebaseUser, user])
 
-  const signIn = useCallback(async (email: string, password: string): Promise<SignInResult> => {
+  const signIn = useCallback(async (identifier: string, password: string): Promise<SignInResult> => {
     const auth = getFirebaseAuth()
     if (!auth) {
       return {
@@ -156,13 +157,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const normalized = email.trim().toLowerCase()
-    if (!isValidEmail(normalized)) {
-      return { status: 'error', message: 'Enter a valid email address.' }
+    const resolved = resolveAuthIdentifier(identifier)
+    if (!resolved.ok) {
+      return { status: 'error', message: resolved.message }
     }
 
     try {
-      const credential = await signInWithEmailAndPassword(auth, normalized, password)
+      const credential = await signInWithEmailAndPassword(auth, resolved.email, password)
       if (!credential.user.emailVerified && !skipEmailVerification()) {
         return { status: 'verify_email' }
       }
@@ -199,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applyFirebaseUser])
 
   const signUp = useCallback(
-    async (email: string, username: string, password: string): Promise<SignUpResult> => {
+    async (identifier: string, password: string): Promise<SignUpResult> => {
       const auth = getFirebaseAuth()
       if (!auth) {
         return {
@@ -208,11 +209,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (!isValidEmail(email)) return { status: 'error', message: 'Enter a valid email address.' }
-      if (!isValidUsername(username)) {
+      const resolved = resolveAuthIdentifier(identifier)
+      if (!resolved.ok) {
+        return { status: 'error', message: resolved.message }
+      }
+      if (resolved.usedUsername && !skipEmailVerification()) {
         return {
           status: 'error',
-          message: 'Username must be 3–20 characters (letters, numbers, underscore).',
+          message: 'Use your email to create an account, or sign up with a username only when email verification is off.',
         }
       }
       if (password.length < 6) {
@@ -220,12 +224,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const credential = await createUserWithEmailAndPassword(
-          auth,
-          email.trim().toLowerCase(),
-          password,
-        )
-        await updateProfile(credential.user, { displayName: username.trim().toLowerCase() })
+        const credential = await createUserWithEmailAndPassword(auth, resolved.email, password)
+        await updateProfile(credential.user, { displayName: resolved.username })
 
         if (credential.user.emailVerified || skipEmailVerification()) {
           applyFirebaseUser(credential.user)

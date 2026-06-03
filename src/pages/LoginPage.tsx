@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { AppAboutSummary } from '../components/AppAboutSummary'
 import { RhythmLogo } from '../components/RhythmLogo'
 import { Card } from '../components/ui/Card'
 import { useAuth } from '../context/AuthContext'
 import { formatAuthError, VERIFICATION_EMAIL_COOLDOWN_SEC } from '../lib/auth/errors'
+import { resolveAuthIdentifier } from '../lib/auth/resolveAuthIdentifier'
 
 type Mode = 'signin' | 'signup'
 
@@ -123,8 +123,7 @@ export function LoginPage() {
   } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>('signin')
-  const [email, setEmail] = useState('')
-  const [username, setUsername] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [pendingVerifyEmail, setPendingVerifyEmail] = useState<string | null>(null)
@@ -204,14 +203,21 @@ export function LoginPage() {
     setBusy(true)
     try {
       if (mode === 'signin') {
-        const result = await signIn(email, password)
+        const result = await signIn(identifier, password)
         if (result.status === 'error') {
           setError(formatAuthError(result.message, result.code))
           return
         }
         if (result.status === 'verify_email') {
-          setPendingVerifyEmail(email.trim().toLowerCase())
-          setInfo('Verify your email using the link we sent, then tap the button below.')
+          const resolved = resolveAuthIdentifier(identifier)
+          setPendingVerifyEmail(
+            resolved.ok && !resolved.usedUsername ? resolved.email : identifier.trim(),
+          )
+          setInfo(
+            resolved.ok && resolved.usedUsername
+              ? 'Account created. Sign in with your username and password.'
+              : 'Verify your email using the link we sent, then tap the button below.',
+          )
           return
         }
         navigate('/', { replace: true })
@@ -223,7 +229,7 @@ export function LoginPage() {
         return
       }
 
-      const result = await signUp(email, username, password)
+      const result = await signUp(identifier, password)
       if (result.status === 'error') {
         setError(formatAuthError(result.message, result.code))
         return
@@ -233,9 +239,16 @@ export function LoginPage() {
         return
       }
 
-      setPendingVerifyEmail(email.trim().toLowerCase())
+      const resolved = resolveAuthIdentifier(identifier)
+      setPendingVerifyEmail(
+        resolved.ok && !resolved.usedUsername ? resolved.email : identifier.trim(),
+      )
       setResendCooldown(VERIFICATION_EMAIL_COOLDOWN_SEC)
-      setInfo('We sent a verification link to your email. Open it, then continue below.')
+      setInfo(
+        resolved.ok && resolved.usedUsername
+          ? 'Account created. Sign in with your username and password.'
+          : 'We sent a verification link to your email. Open it, then continue below.',
+      )
     } finally {
       setBusy(false)
     }
@@ -342,34 +355,21 @@ export function LoginPage() {
 
             <form onSubmit={(e) => void handleSubmit(e)} className="relative z-10 flex flex-col gap-3">
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-muted">Email</span>
+                <span className="mb-1 block text-xs font-medium text-muted">Email or username</span>
                 <input
-                  id="login-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
+                  id="login-identifier"
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  autoComplete={mode === 'signin' ? 'username email' : 'username'}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="w-full rounded-2xl border border-border bg-inset px-4 py-3 text-sm outline-none focus:border-accent/50"
-                  placeholder="you@email.com"
+                  placeholder="you@email.com or yourname"
                   required
                 />
               </label>
-
-              {mode === 'signup' && (
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-muted">Username</span>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase())}
-                    autoComplete="username"
-                    autoCapitalize="off"
-                    className="w-full rounded-2xl border border-border bg-inset px-4 py-3 text-sm outline-none focus:border-accent/50"
-                    placeholder="yourname"
-                    required
-                  />
-                </label>
-              )}
 
               <PasswordField
                 id={mode === 'signin' ? 'signin-password' : 'signup-password'}
@@ -441,8 +441,6 @@ export function LoginPage() {
             )}
           </Card>
         )}
-
-        <AppAboutSummary />
       </div>
     </div>
   )

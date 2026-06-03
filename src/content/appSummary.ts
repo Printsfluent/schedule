@@ -1,7 +1,7 @@
 export const APP_TAGLINE = 'Your daily rhythm for work, study, fitness, and rest.'
 
 export const APP_SUMMARY =
-  'Rhythm is a mobile-first planner that helps you balance remote work, learning, workouts, social time, and recovery — without the guilt trip when life gets messy.'
+  'Rhythm is a mobile-first planner that helps you balance work, learning, workouts, social time, and recovery — without the guilt trip when life gets messy.'
 
 export const APP_FEATURES = [
   { label: 'Home', detail: "See today's plan, mood, progress, and what's up next." },

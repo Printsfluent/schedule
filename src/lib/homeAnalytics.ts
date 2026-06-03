@@ -7,7 +7,7 @@ export type HomeAnalyticsBucket = 'study' | 'focus' | 'workout'
 export function classifyHomeEventLabel(label: string): HomeAnalyticsBucket | null {
   const normalized = label.toLowerCase().trim()
   if (/gym/.test(normalized)) return 'workout'
-  if (/remote work/.test(normalized)) return 'focus'
+  if (/^work$/.test(normalized)) return 'focus'
   if (/programming|project building|light coding|coding review|coding/.test(normalized)) return 'study'
   return null
 }

@@ -1,6 +1,6 @@
 # Rhythm
 
-A mobile-first schedule and productivity app for young professionals balancing remote work, fitness, programming study, social life, and recovery.
+A mobile-first schedule and productivity app for young professionals balancing work, fitness, programming study, social life, and recovery.
 
 Designed to feel **realistic, motivating, and sustainable** — not corporate or robotic.
 

@@ -5,7 +5,7 @@ import type { DayPlanItem, Mood } from '../types'
 const PROTECTED = /wind down|sleep|bed/i
 const STUDY = /programming|coding|study|project/i
 const GYM = /gym/i
-const WORK = /remote work/i
+const WORK = /^work$/i
 
 export function computeWakeDelayMinutes(
   now: Date = new Date(),

@@ -13,10 +13,10 @@ export const REALISTIC_EXTRAS: Omit<DayPlanItem, 'id'>[] = [
 ]
 
 const MODE_BLOCK_PATTERNS: Record<ScheduleMode, RegExp> = {
-  weekday: /programming|remote work|gym|fun|wind down/i,
+  weekday: /programming|work|gym|fun|wind down/i,
   weekend: /gym|project|social|laundry|fun/i,
-  exam: /programming|study|remote work|wind down/i,
-  gym: /gym|walk|stretch|remote work|programming/i,
+  exam: /programming|study|work|wind down/i,
+  gym: /gym|walk|stretch|work|programming/i,
 }
 
 export function blocksForMode(blocks: TimeBlock[], mode: ScheduleMode): TimeBlock[] {
