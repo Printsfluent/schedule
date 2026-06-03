@@ -22,13 +22,13 @@ VARS=(
 echo "Syncing Firebase env vars from $ENV_FILE to Vercel…"
 
 for key in "${VARS[@]}"; do
-  value="$(grep -E "^${key}=" "$ENV_FILE" | head -1 | cut -d= -f2- || true)"
-  if [[ -z "$value" ]]; then
+  value="$(grep -E "^${key}=" "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '\r\n' || true)"
+  if [[ -z "$value" || "$value" == *$'\n'* || "$value" == VITE_* ]]; then
     echo "  skip $key (not in env file)"
     continue
   fi
-  echo "  set $key"
-  printf '%s' "$value" | npx vercel env add "$key" production preview development --force
+  echo "  set $key (production)"
+  npx vercel env add "$key" production --value "$value" --yes --force --no-sensitive
 done
 
 echo "Done. Redeploy for changes to take effect: npm run deploy"
