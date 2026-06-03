@@ -6,6 +6,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 import os from 'os'
 import {
   AUTH_BUNDLE_REV,
+  AUTH_EPOCH_STORAGE_KEY,
+  AUTH_LOGIN_REQUIRED_EPOCH,
   FORCE_LOGIN_LOCAL_KEY,
   SERVICE_WORKER_FILE,
   SW_PURGE_LOCAL_KEY,
@@ -50,6 +52,8 @@ export default defineConfig({
           .replaceAll('__SW_RELOAD_KEY__', SW_RELOAD_SESSION_KEY)
           .replaceAll('__LOGIN_PATH__', loginPath)
           .replaceAll('__AUTH_BUNDLE_REV__', String(AUTH_BUNDLE_REV))
+          .replaceAll('__AUTH_EPOCH_KEY__', AUTH_EPOCH_STORAGE_KEY)
+          .replaceAll('__AUTH_EPOCH_VALUE__', String(AUTH_LOGIN_REQUIRED_EPOCH))
       },
     },
     react(),

@@ -1,10 +1,11 @@
 import { bootstrapAppUpdate } from './lib/appUpdate'
-import { enforceForceLoginGate, redirectToLoginIfGuest } from './lib/auth/forceLoginGate'
+import { redirectToLoginIfGuest } from './lib/auth/forceLoginGate'
 import {
-  hasLegacyAppDataWithoutAuth,
-  redirectToLoginWithCacheBust,
-} from './lib/auth/legacyAppCache'
+  applyMandatoryLoginEpoch,
+  redirectToMandatoryLogin,
+} from './lib/auth/mandatoryLoginEpoch'
 import { hasStoredFirebaseSession } from './lib/auth/hasFirebaseSession'
+import { getFirebaseAuth } from './lib/firebase'
 import { bootstrapBrowserCompat } from './lib/browserCompat'
 import { bootstrapTheme } from './lib/theme'
 import { deleteAllCaches, unregisterAllServiceWorkers } from './lib/unregisterServiceWorkers'
@@ -14,17 +15,16 @@ export async function bootstrapApp(): Promise<void> {
   bootstrapTheme()
 
   if (import.meta.env.PROD && !import.meta.env.SSR) {
-    if (enforceForceLoginGate()) return
-
-    if (hasLegacyAppDataWithoutAuth()) {
+    const auth = getFirebaseAuth()
+    const epochApplied = await applyMandatoryLoginEpoch(auth)
+    if (epochApplied) {
       await unregisterAllServiceWorkers()
       await deleteAllCaches()
-      redirectToLoginWithCacheBust()
+      redirectToMandatoryLogin()
       return
     }
 
-    const hasSession = hasStoredFirebaseSession()
-    if (!hasSession) {
+    if (!hasStoredFirebaseSession()) {
       await unregisterAllServiceWorkers()
       await deleteAllCaches()
       if (redirectToLoginIfGuest()) return

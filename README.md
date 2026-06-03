@@ -155,10 +155,14 @@ npm run cap:ios      # or cap:android
 
 ## Staying signed in
 
-Firebase sessions use **browser local persistence**. Users remain logged in across visits, app restarts, and new deploys until they tap **Sign out** in **Insights → Settings → Account**.
+After a user signs in, Firebase keeps them logged in on that device until they tap **Sign out** (**Insights → Settings → Account**).
 
-Deploys only refresh the PWA cache for guests; they do not clear Firebase auth tokens.
+## Forcing every device to log in again
 
-## Forcing guests to the login page
+Bump `AUTH_LOGIN_REQUIRED_EPOCH` in `src/lib/auth/gateVersion.ts` (same number as `AUTH_GATE_GENERATION`), commit, and deploy. On the next visit each device:
 
-Bump `AUTH_GATE_GENERATION` in `src/lib/auth/gateVersion.ts` to bust stale caches and redirect **unsigned** visitors to `/login`. Signed-in users are not logged out automatically.
+1. Clears saved Firebase / Supabase auth tokens  
+2. Purges stale PWA caches  
+3. Redirects to `/login`  
+
+Anyone who used the app before login was required must create an account or sign in. Users who already signed in on the new epoch stay signed in until the next bump or sign out.

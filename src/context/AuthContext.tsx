@@ -20,6 +20,7 @@ import {
 } from 'firebase/auth'
 import { skipEmailVerification } from '../lib/auth/config'
 import { messageFromUnknownError } from '../lib/auth/errors'
+import { applyMandatoryLoginEpoch } from '../lib/auth/mandatoryLoginEpoch'
 import { applyAuthSessionResetIfNeeded } from '../lib/auth/sessionReset'
 import {
   resolveAuthIdentifier,
@@ -107,6 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false
 
     void (async () => {
+      if (await applyMandatoryLoginEpoch(auth)) {
+        setUser(null)
+        setLoading(false)
+        return
+      }
       await applyAuthSessionResetIfNeeded(auth)
       await waitForAuthPersistence()
     })()

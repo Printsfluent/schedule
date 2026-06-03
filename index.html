@@ -14,6 +14,44 @@
     <script>
       (function () {
         try {
+          var epochKey = '__AUTH_EPOCH_KEY__';
+          var epochVal = '__AUTH_EPOCH_VALUE__';
+          var loginPath = '__LOGIN_PATH__';
+          function onLoginPage() {
+            var p = location.pathname;
+            return p === loginPath || p.slice(-6) === '/login';
+          }
+          function clearStoredAuth() {
+            var remove = [];
+            for (var i = 0; i < localStorage.length; i++) {
+              var k = localStorage.key(i);
+              if (
+                k &&
+                (k.indexOf('firebase:') === 0 ||
+                  k.indexOf('sb-') === 0 ||
+                  k.indexOf('firebaseLocalStorage') >= 0 ||
+                  k.indexOf('rhythm-login:') === 0)
+              ) {
+                remove.push(k);
+              }
+            }
+            remove.forEach(function (k) {
+              localStorage.removeItem(k);
+            });
+          }
+          if (localStorage.getItem(epochKey) !== epochVal) {
+            clearStoredAuth();
+            localStorage.setItem(epochKey, epochVal);
+            if (!onLoginPage()) {
+              location.replace(loginPath + '?auth=required&_=' + Date.now());
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <script>
+      (function () {
+        try {
           var purgeKey = '__SW_PURGE_KEY__';
           if (localStorage.getItem(purgeKey)) return;
           localStorage.setItem(purgeKey, '1');
@@ -96,10 +134,6 @@
         }
         function guardLogin() {
           if (isLoginPage()) return;
-          if (!hasFirebaseSession() && hasLegacyAppData()) {
-            goLogin();
-            return;
-          }
           if (!hasFirebaseSession()) {
             goLogin();
           }
