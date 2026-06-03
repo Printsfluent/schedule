@@ -57,6 +57,20 @@ Users go straight into the app after sign-up. Remove or set to `false` before pr
 
 ## 6. Deploy env vars
 
-**Vercel / GitHub Pages:** add all `VITE_FIREBASE_*` vars. Do **not** set `SKIP_EMAIL_VERIFICATION` on production unless you intend to.
+**Vercel (production):**
+
+1. Project → **Settings** → **Environment Variables**
+2. Add all `VITE_FIREBASE_*` vars for **Production**, **Preview**, and **Development**
+3. Optional testing flag: `VITE_FIREBASE_SKIP_EMAIL_VERIFICATION=true` (omit in production when verification is required)
+4. **Redeploy** after changing env vars
+
+Or from this repo after `npx vercel login` and `npx vercel link`:
+
+```bash
+npm run deploy:env
+npm run deploy
+```
+
+**GitHub Pages:** Repository → Settings → Secrets — add the same keys for the deploy workflow.
 
 Restart dev server after changing `.env`: `npm run dev`

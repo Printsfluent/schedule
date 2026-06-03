@@ -41,6 +41,7 @@ export default defineConfig({
       devOptions: { enabled: useHttps, type: 'module' },
       registerType: 'autoUpdate',
       injectRegister: 'auto',
+      filename: 'rhythm-sw-v4.js',
       includeAssets: ['favicon.svg', 'logo.svg'],
       manifest: {
         name: 'Rhythm',
@@ -56,7 +57,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        cacheId: 'rhythm-auth-v3',
+        cacheId: 'rhythm-auth-v4',
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
@@ -69,13 +70,8 @@ export default defineConfig({
             handler: 'NetworkOnly',
           },
           {
-            urlPattern: /\.(?:js|css)$/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'rhythm-assets',
-              networkTimeoutSeconds: 8,
-              expiration: { maxEntries: 32, maxAgeSeconds: 60 * 60 * 24 },
-            },
+            urlPattern: /\.(?:js|css|mjs)$/i,
+            handler: 'NetworkOnly',
           },
           {
             urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,

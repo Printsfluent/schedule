@@ -10,16 +10,18 @@
     <meta name="format-detection" content="telephone=no" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#0a0e14" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <script>
       (function () {
         try {
-          var purgeKey = 'rhythm-sw-purge-v3';
+          var purgeKey = 'rhythm-sw-purge-v4';
           if (localStorage.getItem(purgeKey)) return;
           localStorage.setItem(purgeKey, '1');
-          var reloaded = sessionStorage.getItem('rhythm-sw-reload');
+          localStorage.removeItem('rhythm-app-build-id');
+          var reloadKey = 'rhythm-sw-reload-v4';
           function maybeReload() {
-            if (!reloaded) {
-              sessionStorage.setItem('rhythm-sw-reload', '1');
+            if (!sessionStorage.getItem(reloadKey)) {
+              sessionStorage.setItem(reloadKey, '1');
               location.reload();
             }
           }

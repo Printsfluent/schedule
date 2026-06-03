@@ -115,6 +115,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [applyFirebaseUser])
 
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return
+      const auth = getFirebaseAuth()
+      if (!auth?.currentUser) {
+        setUser(null)
+        return
+      }
+      void auth.currentUser.reload().then(() => {
+        applyFirebaseUser(auth.currentUser)
+      })
+    }
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [applyFirebaseUser])
+
   const signIn = useCallback(async (email: string, password: string): Promise<SignInResult> => {
     const auth = getFirebaseAuth()
     if (!auth) {

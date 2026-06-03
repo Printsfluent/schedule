@@ -158,9 +158,10 @@ export async function cleanupStaleServiceWorkers() {
       await Promise.all(regs.map((r) => r.unregister()))
       return
     }
-    // Production dev-server SW accidentally cached on phone — drop if no controller script
+    // Production: drop legacy service workers (old sw.js / workbox bundles).
     for (const reg of regs) {
-      if (!reg.active?.scriptURL.includes('sw.js')) {
+      const script = reg.active?.scriptURL ?? reg.installing?.scriptURL ?? reg.waiting?.scriptURL ?? ''
+      if (!script.includes('rhythm-sw-v4.js')) {
         await reg.unregister()
       }
     }

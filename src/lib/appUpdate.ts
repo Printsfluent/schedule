@@ -38,11 +38,11 @@ export async function bootstrapAppUpdate(): Promise<boolean> {
   localStorage.setItem(BUILD_KEY, buildId)
   clearAuthStorage()
 
-  if (previous !== null) {
-    await clearPwaCaches()
-    window.location.reload()
-    return true
-  }
+  const reloadKey = `rhythm-build-reload-${buildId}`
+  if (sessionStorage.getItem(reloadKey)) return false
 
-  return false
+  sessionStorage.setItem(reloadKey, '1')
+  await clearPwaCaches()
+  window.location.reload()
+  return true
 }

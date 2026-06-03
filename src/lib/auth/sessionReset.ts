@@ -2,7 +2,7 @@ import { signOut, type Auth } from 'firebase/auth'
 import { clearAuthStorage } from './clearAuthStorage'
 
 /** Bump to sign out every client on their next visit (e.g. when auth provider changes). */
-export const AUTH_SESSION_RESET_VERSION = 4
+export const AUTH_SESSION_RESET_VERSION = 5
 
 const VERSION_KEY = 'rhythm-auth-reset-version'
 
