@@ -69,6 +69,34 @@
     </script>
     <script>
       (function () {
+        var loginPath = '__LOGIN_PATH__';
+        function isLoginPage() {
+          var p = location.pathname;
+          return p === loginPath || p.slice(-6) === '/login';
+        }
+        function hasFirebaseSession() {
+          try {
+            for (var i = 0; i < localStorage.length; i++) {
+              var k = localStorage.key(i);
+              if (k && k.indexOf('firebase:authUser') !== -1) return true;
+            }
+          } catch (e) {}
+          return false;
+        }
+        function guardLogin() {
+          if (!isLoginPage() && !hasFirebaseSession()) {
+            location.replace(loginPath + location.search + location.hash);
+          }
+        }
+        guardLogin();
+        window.addEventListener('pageshow', guardLogin);
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') guardLogin();
+        });
+      })();
+    </script>
+    <script>
+      (function () {
         try {
           var raw = null;
           for (var i = 0; i < localStorage.length; i++) {

@@ -1,27 +1,14 @@
 import { clearAuthStorage } from './auth/clearAuthStorage'
 import { FORCE_LOGIN_LOCAL_KEY } from './auth/gateVersion'
+import { deleteAllCaches, unregisterAllServiceWorkers } from './unregisterServiceWorkers'
 
 declare const __APP_BUILD_ID__: string
 
 const BUILD_KEY = 'rhythm-app-build-id'
 
 async function clearPwaCaches(): Promise<void> {
-  if ('serviceWorker' in navigator) {
-    try {
-      const regs = await navigator.serviceWorker.getRegistrations()
-      await Promise.all(regs.map((r) => r.unregister()))
-    } catch {
-      /* ignore */
-    }
-  }
-  if ('caches' in window) {
-    try {
-      const keys = await caches.keys()
-      await Promise.all(keys.map((k) => caches.delete(k)))
-    } catch {
-      /* ignore */
-    }
-  }
+  await unregisterAllServiceWorkers()
+  await deleteAllCaches()
 }
 
 /**

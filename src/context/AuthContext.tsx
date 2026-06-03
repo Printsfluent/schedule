@@ -23,7 +23,10 @@ import { messageFromUnknownError } from '../lib/auth/errors'
 import { applyAuthSessionResetIfNeeded } from '../lib/auth/sessionReset'
 import { isValidEmail, isValidUsername } from '../lib/auth/validation'
 import { emailVerificationContinueUrl } from '../lib/auth/verificationUrl'
+import { loginPath, redirectToLoginIfGuest } from '../lib/auth/forceLoginGate'
 import { getFirebaseAuth, isFirebaseConfigured } from '../lib/firebase'
+import { registerProductionPwa, resetPwaRegistration } from '../lib/registerPwa'
+import { deleteAllCaches, unregisterAllServiceWorkers } from '../lib/unregisterServiceWorkers'
 
 export type AuthUser = {
   id: string
@@ -116,20 +119,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applyFirebaseUser])
 
   useEffect(() => {
+    if (user) void registerProductionPwa()
+  }, [user])
+
+  useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
-      if (!event.persisted) return
       const auth = getFirebaseAuth()
       if (!auth?.currentUser) {
         setUser(null)
+        redirectToLoginIfGuest()
         return
       }
-      void auth.currentUser.reload().then(() => {
-        applyFirebaseUser(auth.currentUser)
-      })
+      if (event.persisted) {
+        void auth.currentUser.reload().then(() => {
+          applyFirebaseUser(auth.currentUser)
+        })
+      }
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && !user) redirectToLoginIfGuest()
     }
     window.addEventListener('pageshow', onPageShow)
-    return () => window.removeEventListener('pageshow', onPageShow)
-  }, [applyFirebaseUser])
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('pageshow', onPageShow)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [applyFirebaseUser, user])
 
   const signIn = useCallback(async (email: string, password: string): Promise<SignInResult> => {
     const auth = getFirebaseAuth()
@@ -263,6 +279,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth()
     if (auth) await firebaseSignOut(auth)
     setUser(null)
+    resetPwaRegistration()
+    await unregisterAllServiceWorkers()
+    await deleteAllCaches()
+    window.location.replace(loginPath())
   }, [])
 
   const value = useMemo(

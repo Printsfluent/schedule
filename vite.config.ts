@@ -58,7 +58,7 @@ export default defineConfig({
           VitePWA({
       devOptions: { enabled: useHttps, type: 'module' },
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      injectRegister: false,
       filename: SERVICE_WORKER_FILE,
       includeAssets: ['favicon.svg', 'logo.svg'],
       manifest: {

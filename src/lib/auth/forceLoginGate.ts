@@ -1,7 +1,9 @@
 import { clearAuthStorage } from './clearAuthStorage'
 import { FORCE_LOGIN_LOCAL_KEY } from './gateVersion'
+import { hasStoredFirebaseSession } from './hasFirebaseSession'
+import { deleteAllCaches, unregisterAllServiceWorkers } from '../unregisterServiceWorkers'
 
-function loginPath(): string {
+export function loginPath(): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '') || ''
   return `${base}/login`
 }
@@ -11,22 +13,8 @@ function isLoginPath(pathname: string): boolean {
 }
 
 async function clearPwaCaches(): Promise<void> {
-  if ('serviceWorker' in navigator) {
-    try {
-      const regs = await navigator.serviceWorker.getRegistrations()
-      await Promise.all(regs.map((r) => r.unregister()))
-    } catch {
-      /* ignore */
-    }
-  }
-  if ('caches' in window) {
-    try {
-      const keys = await caches.keys()
-      await Promise.all(keys.map((k) => caches.delete(k)))
-    } catch {
-      /* ignore */
-    }
-  }
+  await unregisterAllServiceWorkers()
+  await deleteAllCaches()
 }
 
 /**
@@ -41,12 +29,16 @@ export async function enforceForceLoginGate(): Promise<boolean> {
   await clearPwaCaches()
   localStorage.setItem(FORCE_LOGIN_LOCAL_KEY, 'done')
 
-  const target = loginPath()
-  if (!isLoginPath(window.location.pathname)) {
-    const suffix = `${window.location.search}${window.location.hash}`
-    window.location.replace(`${target}${suffix}`)
-    return true
-  }
+  return redirectToLoginIfGuest()
+}
 
-  return false
+/** Safari bfcache / stale bundles: send guests to /login on every load. */
+export function redirectToLoginIfGuest(): boolean {
+  if (!import.meta.env.PROD || typeof window === 'undefined') return false
+  if (hasStoredFirebaseSession()) return false
+  if (isLoginPath(window.location.pathname)) return false
+
+  const suffix = `${window.location.search}${window.location.hash}`
+  window.location.replace(`${loginPath()}${suffix}`)
+  return true
 }
