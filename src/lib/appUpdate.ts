@@ -1,4 +1,4 @@
-import { clearSupabaseAuthStorage } from './auth/clearSupabaseStorage'
+import { clearAuthStorage } from './auth/clearAuthStorage'
 
 declare const __APP_BUILD_ID__: string
 
@@ -36,7 +36,7 @@ export async function bootstrapAppUpdate(): Promise<boolean> {
   if (previous === buildId) return false
 
   localStorage.setItem(BUILD_KEY, buildId)
-  clearSupabaseAuthStorage()
+  clearAuthStorage()
 
   if (previous !== null) {
     await clearPwaCaches()

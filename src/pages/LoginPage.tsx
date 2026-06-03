@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { RhythmLogo } from '../components/RhythmLogo'
 import { Card } from '../components/ui/Card'
 import { useAuth } from '../context/AuthContext'
+import { formatAuthError, VERIFICATION_EMAIL_COOLDOWN_SEC } from '../lib/auth/errors'
 
 type Mode = 'signin' | 'signup'
 
@@ -83,31 +84,40 @@ function PasswordField({
   )
 }
 
-function SupabaseSetupNotice() {
+function FirebaseSetupNotice() {
   return (
     <Card glow="#6ea8fe">
-      <h2 className="text-[17px] font-semibold">Supabase required</h2>
+      <h2 className="text-[17px] font-semibold">Firebase required</h2>
       <p className="mt-2 text-xs leading-relaxed text-subtle">
-        Rhythm needs Supabase for sign-in. Create a free project at{' '}
-        <a href="https://supabase.com" className="text-accent underline" target="_blank" rel="noreferrer">
-          supabase.com
+        Create a project at{' '}
+        <a href="https://console.firebase.google.com" className="text-accent underline" target="_blank" rel="noreferrer">
+          Firebase Console
         </a>
-        , then set these environment variables when you build or deploy:
+        , enable Email/Password auth, and add these env vars:
       </p>
       <pre className="mt-3 overflow-x-auto rounded-xl bg-inset p-3 text-[11px] text-muted">
-        {`VITE_SUPABASE_URL=https://xxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-or-publishable-key`}
+        {`VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_APP_ID=`}
       </pre>
       <p className="mt-3 text-[11px] leading-relaxed text-faint">
-        In Supabase: Authentication → Providers → enable Email. For quick testing, disable “Confirm email”
-        under Email settings.
+        See <code className="text-muted">firebase/SETUP.md</code> in the repo for step-by-step setup.
       </p>
     </Card>
   )
 }
 
 export function LoginPage() {
-  const { user, loading, signIn, signUp, supabaseConfigured } = useAuth()
+  const {
+    user,
+    loading,
+    signIn,
+    signUp,
+    refreshEmailVerification,
+    resendVerificationEmail,
+    authConfigured,
+  } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
@@ -115,29 +125,56 @@ export function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [pendingVerifyEmail, setPendingVerifyEmail] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [confirmingEmail, setConfirmingEmail] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
 
   useEffect(() => {
-    const hash = window.location.hash
-    const search = window.location.search
-    if (hash.includes('access_token') || hash.includes('type=signup') || search.includes('code=')) {
-      setConfirmingEmail(true)
-      setInfo('Confirming your email…')
-    }
-  }, [])
+    if (resendCooldown <= 0) return
+    const timer = window.setInterval(() => {
+      setResendCooldown((seconds) => Math.max(0, seconds - 1))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [resendCooldown])
 
-  useEffect(() => {
-    if (confirmingEmail && user) {
-      setConfirmingEmail(false)
-      setInfo('Email confirmed! Signed you in.')
-    }
-  }, [confirmingEmail, user])
-
-  if (!loading && user && !confirmingEmail) {
+  if (!loading && user && !pendingVerifyEmail) {
     return <Navigate to="/" replace />
+  }
+
+  const handleCheckVerified = async () => {
+    setError(null)
+    setInfo(null)
+    setBusy(true)
+    try {
+      const verified = await refreshEmailVerification()
+      if (!verified) {
+        setError('Not verified yet. Open the link in your email, then try again.')
+        return
+      }
+      setPendingVerifyEmail(null)
+      navigate('/', { replace: true })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleResendEmail = async () => {
+    if (resendCooldown > 0) return
+    setError(null)
+    setBusy(true)
+    try {
+      const err = await resendVerificationEmail()
+      if (err) {
+        setError(formatAuthError(err))
+        return
+      }
+      setResendCooldown(VERIFICATION_EMAIL_COOLDOWN_SEC)
+      setInfo('Verification email sent again.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -147,9 +184,14 @@ export function LoginPage() {
     setBusy(true)
     try {
       if (mode === 'signin') {
-        const err = await signIn(signInEmail, password)
-        if (err) {
-          setError(err)
+        const result = await signIn(signInEmail, password)
+        if (result.status === 'error') {
+          setError(formatAuthError(result.message, result.code))
+          return
+        }
+        if (result.status === 'verify_email') {
+          setPendingVerifyEmail(signInEmail.trim().toLowerCase())
+          setInfo('Verify your email using the link we sent, then tap the button below.')
           return
         }
         navigate('/', { replace: true })
@@ -161,16 +203,81 @@ export function LoginPage() {
         return
       }
 
-      const err = await signUp(email, username, password)
-      if (err) {
-        if (err.includes('confirm')) setInfo(err)
-        else setError(err)
+      const result = await signUp(email, username, password)
+      if (result.status === 'error') {
+        setError(formatAuthError(result.message, result.code))
         return
       }
-      navigate('/', { replace: true })
+      if (result.status === 'signed_in') {
+        navigate('/', { replace: true })
+        return
+      }
+
+      setPendingVerifyEmail(email.trim().toLowerCase())
+      setResendCooldown(VERIFICATION_EMAIL_COOLDOWN_SEC)
+      setInfo('We sent a verification link to your email. Open it, then continue below.')
     } finally {
       setBusy(false)
     }
+  }
+
+  if (pendingVerifyEmail) {
+    return (
+      <div className="flex min-h-[100dvh] flex-col bg-base px-4 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
+        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <RhythmLogo className="size-14 rounded-2xl" />
+            <h1 className="mt-4 text-2xl font-bold tracking-tight">Verify your email</h1>
+            <p className="mt-1 text-sm text-subtle">
+              We sent a link to <span className="text-fg">{pendingVerifyEmail}</span>
+            </p>
+          </div>
+
+          <Card glow="#3dd68c">
+            <div className="flex flex-col gap-3">
+              <p className="text-sm leading-relaxed text-subtle">
+                Open the email from Firebase, tap <strong className="text-fg">Verify email</strong>, then
+                return here.
+              </p>
+
+              {error && <p className="text-xs text-[#e76f6f]">{error}</p>}
+              {info && <p className="text-xs text-accent">{info}</p>}
+
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void handleCheckVerified()}
+                className="mt-1 w-full rounded-2xl bg-accent py-3.5 text-sm font-semibold text-accent-text disabled:opacity-60"
+              >
+                {busy ? 'Please wait…' : "I've verified my email"}
+              </button>
+
+              <button
+                type="button"
+                disabled={busy || resendCooldown > 0}
+                onClick={() => void handleResendEmail()}
+                className="text-xs text-subtle underline disabled:opacity-50"
+              >
+                {resendCooldown > 0 ? `Resend email in ${resendCooldown}s` : 'Resend verification email'}
+              </button>
+
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setPendingVerifyEmail(null)
+                  setError(null)
+                  setInfo(null)
+                }}
+                className="text-xs text-faint"
+              >
+                ← Back to sign in
+              </button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -184,8 +291,8 @@ export function LoginPage() {
           </p>
         </div>
 
-        {!supabaseConfigured ? (
-          <SupabaseSetupNotice />
+        {!authConfigured ? (
+          <FirebaseSetupNotice />
         ) : (
           <Card glow="#3dd68c">
             <div className="mb-4 flex rounded-2xl bg-inset p-1">

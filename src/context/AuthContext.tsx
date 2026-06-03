@@ -7,10 +7,20 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { authRedirectUrl } from '../lib/auth/redirectUrl'
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  updateProfile,
+  type User,
+} from 'firebase/auth'
+import { messageFromUnknownError } from '../lib/auth/errors'
 import { applyAuthSessionResetIfNeeded } from '../lib/auth/sessionReset'
 import { isValidEmail, isValidUsername } from '../lib/auth/validation'
-import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient'
+import { emailVerificationContinueUrl } from '../lib/auth/verificationUrl'
+import { getFirebaseAuth, isFirebaseConfigured } from '../lib/firebase'
 
 export type AuthUser = {
   id: string
@@ -18,119 +28,190 @@ export type AuthUser = {
   username: string
 }
 
+export type SignUpResult =
+  | { status: 'signed_in' }
+  | { status: 'verify_email' }
+  | { status: 'error'; message: string; code?: string }
+
+export type SignInResult =
+  | { status: 'signed_in' }
+  | { status: 'verify_email' }
+  | { status: 'error'; message: string; code?: string }
+
 type AuthContextValue = {
   user: AuthUser | null
   loading: boolean
-  supabaseConfigured: boolean
-  signIn: (email: string, password: string) => Promise<string | null>
-  signUp: (email: string, username: string, password: string) => Promise<string | null>
+  authConfigured: boolean
+  signIn: (email: string, password: string) => Promise<SignInResult>
+  signUp: (email: string, username: string, password: string) => Promise<SignUpResult>
+  refreshEmailVerification: () => Promise<boolean>
+  resendVerificationEmail: () => Promise<string | null>
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-function usernameFromSupabaseUser(
-  meta: Record<string, unknown> | undefined,
-  email: string,
-): string {
-  const raw = meta?.username
-  if (typeof raw === 'string' && isValidUsername(raw)) return raw.toLowerCase()
-  return email.split('@')[0]?.slice(0, 20) || 'user'
+function usernameFromFirebaseUser(fbUser: User): string {
+  const fromDisplay = fbUser.displayName?.trim().toLowerCase()
+  if (fromDisplay && isValidUsername(fromDisplay)) return fromDisplay
+  return fbUser.email?.split('@')[0]?.slice(0, 20) || 'user'
+}
+
+function userFromFirebase(fbUser: User): AuthUser | null {
+  if (!fbUser.email) return null
+  return {
+    id: fbUser.uid,
+    email: fbUser.email,
+    username: usernameFromFirebaseUser(fbUser),
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabaseConfigured = isSupabaseConfigured()
+  const authConfigured = isFirebaseConfigured()
 
-  const applySession = useCallback(
-    (session: { user: { id: string; email?: string; user_metadata?: Record<string, unknown> } } | null) => {
-      if (!session?.user.email) {
-        setUser(null)
-        return
-      }
-      setUser({
-        id: session.user.id,
-        email: session.user.email,
-        username: usernameFromSupabaseUser(session.user.user_metadata, session.user.email),
-      })
-    },
-    [],
-  )
-
-  useEffect(() => {
-    let cancelled = false
-    const supabase = getSupabase()
-
-    if (!supabase) {
-      setLoading(false)
-      return () => {
-        cancelled = true
-      }
+  const applyFirebaseUser = useCallback((fbUser: User | null) => {
+    if (!fbUser?.email || !fbUser.emailVerified) {
+      setUser(null)
+      return
     }
-
-    void (async () => {
-      await applyAuthSessionResetIfNeeded(supabase)
-      const { data } = await supabase.auth.getSession()
-      if (!cancelled) {
-        applySession(data.session)
-        setLoading(false)
-      }
-    })()
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      applySession(session)
-    })
-    return () => {
-      cancelled = true
-      listener.subscription.unsubscribe()
-    }
-  }, [applySession])
-
-  const signIn = useCallback(async (email: string, password: string): Promise<string | null> => {
-    const supabase = getSupabase()
-    if (!supabase) return 'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or VITE_SUPABASE_PUBLISHABLE_KEY).'
-
-    const normalized = email.trim().toLowerCase()
-    if (!isValidEmail(normalized)) return 'Enter a valid email address.'
-
-    const { error } = await supabase.auth.signInWithPassword({ email: normalized, password })
-    return error?.message ?? null
+    setUser(userFromFirebase(fbUser))
   }, [])
 
+  useEffect(() => {
+    const auth = getFirebaseAuth()
+    if (!auth) {
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+
+    void (async () => {
+      await applyAuthSessionResetIfNeeded(auth)
+    })()
+
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      if (!cancelled) {
+        applyFirebaseUser(fbUser)
+        setLoading(false)
+      }
+    })
+
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [applyFirebaseUser])
+
+  const signIn = useCallback(async (email: string, password: string): Promise<SignInResult> => {
+    const auth = getFirebaseAuth()
+    if (!auth) {
+      return {
+        status: 'error',
+        message: 'Firebase is not configured. Add VITE_FIREBASE_* keys to your environment.',
+      }
+    }
+
+    const normalized = email.trim().toLowerCase()
+    if (!isValidEmail(normalized)) {
+      return { status: 'error', message: 'Enter a valid email address.' }
+    }
+
+    try {
+      const credential = await signInWithEmailAndPassword(auth, normalized, password)
+      if (!credential.user.emailVerified) {
+        return { status: 'verify_email' }
+      }
+      applyFirebaseUser(credential.user)
+      return { status: 'signed_in' }
+    } catch (err) {
+      const { message, code } = messageFromUnknownError(err)
+      return { status: 'error', message, code }
+    }
+  }, [applyFirebaseUser])
+
   const signUp = useCallback(
-    async (email: string, username: string, password: string): Promise<string | null> => {
-      const supabase = getSupabase()
-      if (!supabase) return 'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or VITE_SUPABASE_PUBLISHABLE_KEY).'
+    async (email: string, username: string, password: string): Promise<SignUpResult> => {
+      const auth = getFirebaseAuth()
+      if (!auth) {
+        return {
+          status: 'error',
+          message: 'Firebase is not configured. Add VITE_FIREBASE_* keys to your environment.',
+        }
+      }
 
-      if (!isValidEmail(email)) return 'Enter a valid email address.'
+      if (!isValidEmail(email)) return { status: 'error', message: 'Enter a valid email address.' }
       if (!isValidUsername(username)) {
-        return 'Username must be 3–20 characters (letters, numbers, underscore).'
+        return {
+          status: 'error',
+          message: 'Username must be 3–20 characters (letters, numbers, underscore).',
+        }
       }
-      if (password.length < 6) return 'Password must be at least 6 characters.'
-
-      const { error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
-        options: {
-          emailRedirectTo: authRedirectUrl(),
-          data: { username: username.trim().toLowerCase() },
-        },
-      })
-      if (error) return error.message
-
-      const { data } = await supabase.auth.getSession()
-      if (data.session) {
-        applySession(data.session)
-        return null
+      if (password.length < 6) {
+        return { status: 'error', message: 'Password must be at least 6 characters.' }
       }
-      return 'Check your email to confirm your account, then sign in.'
+
+      try {
+        const credential = await createUserWithEmailAndPassword(
+          auth,
+          email.trim().toLowerCase(),
+          password,
+        )
+        await updateProfile(credential.user, { displayName: username.trim().toLowerCase() })
+
+        if (credential.user.emailVerified) {
+          applyFirebaseUser(credential.user)
+          return { status: 'signed_in' }
+        }
+
+        await sendEmailVerification(credential.user, {
+          url: emailVerificationContinueUrl(),
+          handleCodeInApp: false,
+        })
+        return { status: 'verify_email' }
+      } catch (err) {
+        const { message, code } = messageFromUnknownError(err)
+        return { status: 'error', message, code }
+      }
     },
-    [applySession],
+    [applyFirebaseUser],
   )
 
+  const refreshEmailVerification = useCallback(async (): Promise<boolean> => {
+    const auth = getFirebaseAuth()
+    const fbUser = auth?.currentUser
+    if (!fbUser) return false
+    await fbUser.reload()
+    if (fbUser.emailVerified) {
+      applyFirebaseUser(fbUser)
+      return true
+    }
+    return false
+  }, [applyFirebaseUser])
+
+  const resendVerificationEmail = useCallback(async (): Promise<string | null> => {
+    const auth = getFirebaseAuth()
+    const fbUser = auth?.currentUser
+    if (!fbUser) {
+      return 'Sign in again, or finish creating your account from the sign-up screen.'
+    }
+    try {
+      await sendEmailVerification(fbUser, {
+        url: emailVerificationContinueUrl(),
+        handleCodeInApp: false,
+      })
+      return null
+    } catch (err) {
+      const { message } = messageFromUnknownError(err)
+      return message
+    }
+  }, [])
+
   const signOut = useCallback(async () => {
-    const supabase = getSupabase()
-    if (supabase) await supabase.auth.signOut()
+    const auth = getFirebaseAuth()
+    if (auth) await firebaseSignOut(auth)
     setUser(null)
   }, [])
 
@@ -138,12 +219,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loading,
-      supabaseConfigured,
+      authConfigured,
       signIn,
       signUp,
+      refreshEmailVerification,
+      resendVerificationEmail,
       signOut,
     }),
-    [user, loading, supabaseConfigured, signIn, signUp, signOut],
+    [
+      user,
+      loading,
+      authConfigured,
+      signIn,
+      signUp,
+      refreshEmailVerification,
+      resendVerificationEmail,
+      signOut,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
