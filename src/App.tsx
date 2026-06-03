@@ -145,12 +145,12 @@ export default function App() {
   const eveningBlocking = eveningFlow !== null
   const appBlocked = morningBlocking || eveningBlocking
 
-  if (authLoading) {
-    return <AuthLoading />
-  }
-
   if (isLoginRoute) {
     return <LoginPage />
+  }
+
+  if (authLoading) {
+    return <AuthLoading />
   }
 
   if (!user) {

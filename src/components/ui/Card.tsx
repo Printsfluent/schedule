@@ -11,7 +11,7 @@ export function Card({ children, className = '', glow, onClick }: CardProps) {
   return (
     <div
       onClick={onClick}
-      className={`animate-fade-in rounded-3xl border border-border bg-panel/90 p-4 card-shadow backdrop-blur-xl transition-all duration-300 active:scale-[0.99] ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      className={`animate-fade-in rounded-3xl border border-border bg-panel/90 p-4 card-shadow backdrop-blur-xl transition-all duration-300 ${onClick ? 'cursor-pointer active:scale-[0.99]' : ''} ${className}`}
       style={glow ? { boxShadow: `0 8px 40px ${glow}22, 0 0 0 1px ${glow}18` } : undefined}
     >
       {children}

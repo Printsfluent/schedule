@@ -124,7 +124,6 @@ export function LoginPage() {
   const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
-  const [signInEmail, setSignInEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -205,13 +204,13 @@ export function LoginPage() {
     setBusy(true)
     try {
       if (mode === 'signin') {
-        const result = await signIn(signInEmail, password)
+        const result = await signIn(email, password)
         if (result.status === 'error') {
           setError(formatAuthError(result.message, result.code))
           return
         }
         if (result.status === 'verify_email') {
-          setPendingVerifyEmail(signInEmail.trim().toLowerCase())
+          setPendingVerifyEmail(email.trim().toLowerCase())
           setInfo('Verify your email using the link we sent, then tap the button below.')
           return
         }
@@ -302,9 +301,9 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-base px-4 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
-      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center">
-        <div className="mb-8 flex flex-col items-center text-center">
+    <div className="min-h-[100dvh] overflow-y-auto bg-base px-4 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
+      <div className="mx-auto flex w-full max-w-sm flex-col gap-6 py-4">
+        <div className="flex flex-col items-center text-center">
           <RhythmLogo className="size-14 rounded-2xl" />
           <h1 className="mt-4 text-2xl font-bold tracking-tight">Rhythm</h1>
           <p className="mt-1 text-sm text-subtle">
@@ -312,13 +311,11 @@ export function LoginPage() {
           </p>
         </div>
 
-        <AppAboutSummary />
-
         {!authConfigured ? (
           <FirebaseSetupNotice />
         ) : (
-          <Card glow="#3dd68c">
-            <div className="mb-4 flex rounded-2xl bg-inset p-1">
+          <Card glow="#3dd68c" className="relative z-10">
+            <div className="relative z-10 mb-4 flex rounded-2xl bg-inset p-1">
               <button
                 type="button"
                 onClick={() => {
@@ -326,7 +323,7 @@ export function LoginPage() {
                   setError(null)
                   setInfo(null)
                 }}
-                className={`flex-1 rounded-xl py-2.5 text-sm font-medium transition-colors ${mode === 'signin' ? 'bg-panel text-fg shadow-sm' : 'text-subtle'}`}
+                className={`relative z-10 min-h-[44px] flex-1 rounded-xl py-2.5 text-sm font-medium transition-colors touch-manipulation ${mode === 'signin' ? 'bg-panel text-fg shadow-sm' : 'text-subtle'}`}
               >
                 Sign in
               </button>
@@ -337,58 +334,45 @@ export function LoginPage() {
                   setError(null)
                   setInfo(null)
                 }}
-                className={`flex-1 rounded-xl py-2.5 text-sm font-medium transition-colors ${mode === 'signup' ? 'bg-panel text-fg shadow-sm' : 'text-subtle'}`}
+                className={`relative z-10 min-h-[44px] flex-1 rounded-xl py-2.5 text-sm font-medium transition-colors touch-manipulation ${mode === 'signup' ? 'bg-panel text-fg shadow-sm' : 'text-subtle'}`}
               >
                 Sign up
               </button>
             </div>
 
-            <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-3">
-              {mode === 'signin' ? (
+            <form onSubmit={(e) => void handleSubmit(e)} className="relative z-10 flex flex-col gap-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-muted">Email</span>
+                <input
+                  id="login-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  className="w-full rounded-2xl border border-border bg-inset px-4 py-3 text-sm outline-none focus:border-accent/50"
+                  placeholder="you@email.com"
+                  required
+                />
+              </label>
+
+              {mode === 'signup' && (
                 <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-muted">Email</span>
+                  <span className="mb-1 block text-xs font-medium text-muted">Username</span>
                   <input
-                    type="email"
-                    value={signInEmail}
-                    onChange={(e) => setSignInEmail(e.target.value)}
-                    autoComplete="email"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase())}
+                    autoComplete="username"
+                    autoCapitalize="off"
                     className="w-full rounded-2xl border border-border bg-inset px-4 py-3 text-sm outline-none focus:border-accent/50"
-                    placeholder="you@email.com"
+                    placeholder="yourname"
                     required
                   />
                 </label>
-              ) : (
-                <>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-muted">Username</span>
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase())}
-                      autoComplete="username"
-                      autoCapitalize="off"
-                      className="w-full rounded-2xl border border-border bg-inset px-4 py-3 text-sm outline-none focus:border-accent/50"
-                      placeholder="yourname"
-                      required
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-muted">Email</span>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      autoComplete="email"
-                      className="w-full rounded-2xl border border-border bg-inset px-4 py-3 text-sm outline-none focus:border-accent/50"
-                      placeholder="you@email.com"
-                      required
-                    />
-                  </label>
-                </>
               )}
 
               <PasswordField
-                id="login-password"
+                id={mode === 'signin' ? 'signin-password' : 'signup-password'}
                 label="Password"
                 value={password}
                 onChange={setPassword}
@@ -410,10 +394,10 @@ export function LoginPage() {
 
               <button
                 type="submit"
-                disabled={busy}
-                className="mt-1 w-full rounded-2xl bg-accent py-3.5 text-sm font-semibold text-accent-text disabled:opacity-60"
+                disabled={busy || loading}
+                className="relative z-10 mt-1 min-h-[48px] w-full touch-manipulation rounded-2xl bg-accent py-3.5 text-sm font-semibold text-accent-text disabled:opacity-60"
               >
-                {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
+                {busy || loading ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
               </button>
             </form>
 
@@ -425,9 +409,9 @@ export function LoginPage() {
 
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || loading}
               onClick={() => void handleGoogleSignIn()}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-inset py-3.5 text-sm font-semibold text-fg disabled:opacity-60"
+              className="relative z-10 flex min-h-[48px] w-full touch-manipulation items-center justify-center gap-2 rounded-2xl border border-border bg-inset py-3.5 text-sm font-semibold text-fg disabled:opacity-60"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
                 <path
@@ -457,6 +441,8 @@ export function LoginPage() {
             )}
           </Card>
         )}
+
+        <AppAboutSummary />
       </div>
     </div>
   )
