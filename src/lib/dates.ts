@@ -1,4 +1,4 @@
-import { cascadeBlocksForDate } from './blockCascade'
+import { getRawBlocksForDate } from './blockCascade'
 import type { DayLog, Recurring, StudyBlocks, TimeBlock } from '../types'
 
 export function formatDateKey(date: Date): string {
@@ -104,9 +104,9 @@ export function blockAppliesToday(block: TimeBlock, date: Date): boolean {
   }
 }
 
-/** Blocks for a date with times chained end-to-end; first block follows prior night's sleep. */
+/** Blocks for a date using stored start/duration (user edits are not overridden). */
 export function getBlocksForDate(blocks: TimeBlock[], date: Date): TimeBlock[] {
-  return cascadeBlocksForDate(blocks, date)
+  return getRawBlocksForDate(blocks, date)
 }
 
 export function recurringForDate(date: Date): Recurring {

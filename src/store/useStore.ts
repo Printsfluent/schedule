@@ -16,7 +16,6 @@ import type {
   TimeBlock,
   WeeklyPlan,
 } from '../types'
-import { persistOneOffCascadeStarts, syncAllSleepDurationsFromNextDayWake } from '../lib/blockCascade'
 import { refreshBlockTimesInPlan } from '../lib/dailyPlan'
 import { emptyDayLog, formatDateKey, getBlocksForDate, parseDateKey } from '../lib/dates'
 import { applyAutoHabitsToLog } from '../lib/habitTracking'
@@ -25,7 +24,6 @@ import { safeStorage } from '../lib/browserCompat'
 import { getDeviceStorageKey, getUserStorageKey, STORAGE_BASE } from '../lib/deviceStorage'
 import { clampDurationSeconds } from '../lib/duration'
 import { applySleepScheduleMigration } from '../lib/ensureSleepBlock'
-import { clampSleepDuration, isSleepBlock } from '../lib/sleepSchedule'
 import { createId } from '../lib/id'
 
 let storageKey = getDeviceStorageKey(STORAGE_BASE)
@@ -491,28 +489,11 @@ export function useStore() {
   const updateTimeBlock = useCallback(
     (blockId: string, patch: Partial<TimeBlock>, forDateKey?: string) => {
       setState((s) => {
-        let timeBlocks = s.timeBlocks.map((b) => (b.id === blockId ? { ...b, ...patch } : b))
-        const updated = timeBlocks.find((b) => b.id === blockId)
+        const timeBlocks = s.timeBlocks.map((b) => (b.id === blockId ? { ...b, ...patch } : b))
         let days = s.days
-        if (updated?.dateKey) {
-          timeBlocks = persistOneOffCascadeStarts(timeBlocks, parseDateKey(updated.dateKey))
-        }
-        if (updated && isSleepBlock(updated) && patch.durationMinutes != null) {
-          timeBlocks = timeBlocks.map((b) =>
-            b.id === blockId
-              ? { ...b, durationMinutes: clampSleepDuration(b.durationMinutes) }
-              : b,
-          )
-        }
-        timeBlocks = syncAllSleepDurationsFromNextDayWake(timeBlocks)
         const refreshKeys = new Set<string>()
         if (forDateKey) refreshKeys.add(forDateKey)
         refreshKeys.add(formatDateKey(new Date()))
-        if (updated && isSleepBlock(updated)) {
-          const tomorrow = new Date()
-          tomorrow.setDate(tomorrow.getDate() + 1)
-          refreshKeys.add(formatDateKey(tomorrow))
-        }
         for (const refreshKey of refreshKeys) {
           const log = days[refreshKey]
           const plan = log?.dailyPlan
@@ -531,17 +512,12 @@ export function useStore() {
     [],
   )
 
-  const addTimeBlock = useCallback(
-    (block: Omit<TimeBlock, 'id'>, blockId?: string, forDateKey?: string) => {
+  const addTimeBlock = useCallback((block: Omit<TimeBlock, 'id'>, blockId?: string) => {
       const id = blockId ?? createId()
-      setState((s) => {
-        let timeBlocks = [...s.timeBlocks, { ...block, id }]
-        const dateKey = block.dateKey ?? forDateKey
-        if (dateKey) {
-          timeBlocks = persistOneOffCascadeStarts(timeBlocks, parseDateKey(dateKey))
-        }
-        return { ...s, timeBlocks }
-      })
+      setState((s) => ({
+        ...s,
+        timeBlocks: [...s.timeBlocks, { ...block, id }],
+      }))
       return id
     },
     [],
@@ -549,7 +525,6 @@ export function useStore() {
 
   const removeTimeBlock = useCallback((blockId: string) => {
     setState((s) => {
-      const removed = s.timeBlocks.find((b) => b.id === blockId)
       const days: Record<string, DayLog> = {}
       for (const [key, log] of Object.entries(s.days)) {
         days[key] = {
@@ -560,13 +535,9 @@ export function useStore() {
           ),
         }
       }
-      let timeBlocks = s.timeBlocks.filter((b) => b.id !== blockId)
-      if (removed?.dateKey) {
-        timeBlocks = persistOneOffCascadeStarts(timeBlocks, parseDateKey(removed.dateKey))
-      }
       return {
         ...s,
-        timeBlocks,
+        timeBlocks: s.timeBlocks.filter((b) => b.id !== blockId),
         days,
         planFocusBlockId: s.planFocusBlockId === blockId ? null : s.planFocusBlockId,
       }

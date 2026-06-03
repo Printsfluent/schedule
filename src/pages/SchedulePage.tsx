@@ -13,15 +13,7 @@ import {
   isOneOffBlock,
   recurringLabel,
 } from '../lib/dates'
-import {
-  cascadeBlocksForDate,
-  findPriorNightSleepBlock,
-  formatSleepBlockTimes,
-  getRawBlocksForDate,
-  previousCalendarDate,
-  resolveSleepTimes,
-  sleepDurationForPriorNightWake,
-} from '../lib/blockCascade'
+import { formatSleepBlockTimes, getRawBlocksForDate } from '../lib/blockCascade'
 import { createId } from '../lib/id'
 import { buildPlanDisplayEntries, getDailyPlan, syncPlanItemsForBlock } from '../lib/dailyPlan'
 import {
@@ -110,90 +102,26 @@ export function SchedulePage() {
 
   const applyBlockEdit = useCallback(
     (block: TimeBlock) => {
-      const normalized = isSleepBlock(block)
-        ? (() => {
-            const resolved = resolveSleepTimes(state.timeBlocks, block, selectedDate)
-            return {
-              ...block,
-              startMinutes: resolved.startMinutes,
-              durationMinutes: resolved.durationMinutes,
-            }
-          })()
-        : block
-      let simulated = state.timeBlocks.map((b) =>
-        b.id === normalized.id ? { ...b, ...normalized } : b,
-      )
-      const cascaded = cascadeBlocksForDate(simulated, selectedDate).find(
-        (b) => b.id === normalized.id,
-      )
-      updateTimeBlock(normalized.id, normalized, dateKey)
+      updateTimeBlock(block.id, block, dateKey)
       const plan = dayLog.dailyPlan ?? []
       if (plan.some((item) => item.kind === 'block' && item.blockId === block.id)) {
         updateDay(dateKey, {
-          dailyPlan: syncPlanItemsForBlock(plan, normalized.id, {
-            label: normalized.label,
-            category: normalized.category,
-            startMinutes: cascaded?.startMinutes ?? normalized.startMinutes,
-            durationMinutes: cascaded?.durationMinutes ?? normalized.durationMinutes,
+          dailyPlan: syncPlanItemsForBlock(plan, block.id, {
+            label: block.label,
+            category: block.category,
+            startMinutes: block.startMinutes,
+            durationMinutes: block.durationMinutes,
           }),
         })
       }
     },
-    [dateKey, dayLog.dailyPlan, selectedDate, state.timeBlocks, updateDay, updateTimeBlock],
+    [dateKey, dayLog.dailyPlan, updateDay, updateTimeBlock],
   )
 
   const patchEditing = (patch: Partial<TimeBlock>) => {
     if (!editing) return
     const next = { ...editing, ...patch }
     setEditing(next)
-    if (patch.startMinutes != null) {
-      const cascaded = getBlocksForDate(state.timeBlocks, selectedDate)
-      const idx = cascaded.findIndex((b) => b.id === editing.id)
-      if (isSleepBlock(editing) && patch.startMinutes != null) {
-        const resolved = resolveSleepTimes(state.timeBlocks, { ...editing, ...patch }, selectedDate)
-        updateTimeBlock(
-          editing.id,
-          {
-            startMinutes: resolved.startMinutes,
-            durationMinutes: resolved.durationMinutes,
-          },
-          dateKey,
-        )
-        setEditing({ ...next, startMinutes: resolved.startMinutes, durationMinutes: resolved.durationMinutes })
-        return
-      }
-      if (idx === 0) {
-        const newSleepDur = sleepDurationForPriorNightWake(
-          state.timeBlocks,
-          selectedDate,
-          patch.startMinutes,
-        )
-        if (newSleepDur != null) {
-          const priorSleep = findPriorNightSleepBlock(state.timeBlocks, selectedDate)
-          if (priorSleep) {
-            const prevKey = formatDateKey(previousCalendarDate(selectedDate))
-            updateTimeBlock(priorSleep.id, { durationMinutes: newSleepDur }, prevKey)
-          }
-        }
-      } else if (idx > 0) {
-        const prev = cascaded[idx - 1]
-        const newDur = patch.startMinutes - prev.startMinutes
-        if (newDur >= 5) {
-          let simulated = state.timeBlocks.map((b) =>
-            b.id === prev.id ? { ...b, durationMinutes: newDur } : b,
-          )
-          const refreshed = cascadeBlocksForDate(simulated, selectedDate).find(
-            (b) => b.id === editing.id,
-          )
-          updateTimeBlock(prev.id, { durationMinutes: newDur }, dateKey)
-          setEditing({
-            ...next,
-            startMinutes: refreshed?.startMinutes ?? patch.startMinutes,
-          })
-          return
-        }
-      }
-    }
     applyBlockEdit(next)
   }
 
@@ -210,7 +138,7 @@ export function SchedulePage() {
   const handleAddBlock = () => {
     const defaults = defaultNewBlockForDay(state.timeBlocks, selectedDate)
     const id = createId()
-    addTimeBlock(defaults, id, dateKey)
+    addTimeBlock(defaults, id)
     setEditing({ ...defaults, id })
   }
 
@@ -315,7 +243,7 @@ export function SchedulePage() {
                     <div className="mt-1 text-[15px] font-semibold">{block.label}</div>
                     <div className="mt-0.5 text-xs text-subtle">
                       {isSleepBlock(block)
-                        ? formatSleepBlockTimes(state.timeBlocks, block, selectedDate)
+                        ? formatSleepBlockTimes(block)
                         : `${formatTime(block.startMinutes)} · ${formatDuration(block.durationMinutes)}`}
                     </div>
                   </button>
@@ -395,35 +323,19 @@ export function SchedulePage() {
                     <span className="mt-1 block text-[10px] text-faint">
                       Any format: 9:30 AM · 2 pm · 14:30 · 930 · 9
                     </span>
-                    {editing &&
-                      getBlocksForDate(state.timeBlocks, selectedDate)[0]?.id === editing.id &&
-                      findPriorNightSleepBlock(state.timeBlocks, selectedDate) && (
-                        <span className="mt-1 block text-[10px] text-faint">
-                          Earlier wake shortens last night&apos;s sleep (4–8h).
-                        </span>
-                      )}
                   </label>
                   <label className="block text-xs text-subtle">
                     Duration (min)
-                    {isSleepBlock(editing) ? (
-                      <p className="mt-1 rounded-xl bg-inset px-3 py-2.5 text-sm text-subtle">
-                        {formatSleepBlockTimes(state.timeBlocks, editing, selectedDate)}
-                        <span className="mt-1 block text-[10px] text-faint">
-                          Calculated from bedtime and tomorrow&apos;s first block (4–8h max).
-                        </span>
-                      </p>
-                    ) : (
-                      <>
-                        <FlexibleDurationField
-                          minutes={editing.durationMinutes}
-                          onChange={(durationMinutes) => patchEditing({ durationMinutes })}
-                          className="mt-1 w-full rounded-xl bg-inset px-3 py-2.5 text-sm outline-none"
-                        />
-                        <span className="mt-1 block text-[10px] text-faint">
-                          Any minutes: 45 · 90 · 120 · 1h30
-                        </span>
-                      </>
-                    )}
+                    <FlexibleDurationField
+                      minutes={editing.durationMinutes}
+                      onChange={(durationMinutes) => patchEditing({ durationMinutes })}
+                      className="mt-1 w-full rounded-xl bg-inset px-3 py-2.5 text-sm outline-none"
+                    />
+                    <span className="mt-1 block text-[10px] text-faint">
+                      {isSleepBlock(editing)
+                        ? `Shown as ${formatSleepBlockTimes(editing)}`
+                        : 'Any minutes: 45 · 90 · 120 · 1h30'}
+                    </span>
                   </label>
                 </div>
                 <label className="block text-xs text-subtle">

@@ -60,27 +60,10 @@ export function resolveSleepTimes(
   }
 }
 
-/** e.g. "11:30 PM – 7:00 AM · 7h 30m" */
-export function formatSleepBlockTimes(
-  allBlocks: TimeBlock[],
-  sleepBlock: TimeBlock,
-  onDate: Date,
-): string {
-  const { startMinutes, endMinutes, durationMinutes } = resolveSleepTimes(
-    allBlocks,
-    sleepBlock,
-    onDate,
-  )
-  return `${formatTime(startMinutes)} – ${formatTime(endMinutes)} · ${formatDuration(durationMinutes)}`
-}
-
-/** @deprecated Use formatSleepBlockTimes */
-export function formatSleepWakeLabel(
-  allBlocks: TimeBlock[],
-  sleepBlock: TimeBlock,
-  onDate: Date,
-): string {
-  return formatSleepBlockTimes(allBlocks, sleepBlock, onDate)
+/** e.g. "11:30 PM – 7:00 AM · 7h 30m" from stored start + duration. */
+export function formatSleepBlockTimes(block: TimeBlock): string {
+  const end = sleepEndMinutes(block.startMinutes, block.durationMinutes)
+  return `${formatTime(block.startMinutes)} – ${formatTime(end)} · ${formatDuration(block.durationMinutes)}`
 }
 
 /** Set last night's sleep duration so it ends when the next day's first block starts. */
