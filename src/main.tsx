@@ -1,3 +1,13 @@
+import { AUTH_BUNDLE_REV } from './lib/auth/gateVersion'
+
+declare global {
+  interface Window {
+    __RHYTHM_AUTH_REV__?: number
+  }
+}
+
+window.__RHYTHM_AUTH_REV__ = AUTH_BUNDLE_REV
+
 import { bootstrapApp } from './bootstrap'
 import { StrictMode } from 'react'
 import { Capacitor } from '@capacitor/core'

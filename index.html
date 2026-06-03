@@ -67,6 +67,7 @@
     <script>
       (function () {
         var loginPath = '__LOGIN_PATH__';
+        var bundleRev = '__AUTH_BUNDLE_REV__';
         function isLoginPage() {
           var p = location.pathname;
           return p === loginPath || p.slice(-6) === '/login';
@@ -80,9 +81,27 @@
           } catch (e) {}
           return false;
         }
+        function hasLegacyAppData() {
+          try {
+            for (var i = 0; i < localStorage.length; i++) {
+              var k = localStorage.key(i);
+              if (k && (k.indexOf('rhythm-app-v2') === 0 || k === 'schedule-app-state')) return true;
+            }
+          } catch (e) {}
+          return false;
+        }
+        function goLogin() {
+          var sep = loginPath.indexOf('?') >= 0 ? '&' : '?';
+          location.replace(loginPath + sep + 'refresh=' + Date.now());
+        }
         function guardLogin() {
-          if (!isLoginPage() && !hasFirebaseSession()) {
-            location.replace(loginPath + location.search + location.hash);
+          if (isLoginPage()) return;
+          if (!hasFirebaseSession() && hasLegacyAppData()) {
+            goLogin();
+            return;
+          }
+          if (!hasFirebaseSession()) {
+            goLogin();
           }
         }
         guardLogin();
@@ -90,6 +109,11 @@
         document.addEventListener('visibilitychange', function () {
           if (document.visibilityState === 'visible') guardLogin();
         });
+        setTimeout(function () {
+          if (window.__RHYTHM_AUTH_REV__ !== bundleRev && !isLoginPage()) {
+            goLogin();
+          }
+        }, 3000);
       })();
     </script>
     <script>

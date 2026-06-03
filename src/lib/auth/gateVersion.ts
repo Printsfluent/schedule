@@ -2,7 +2,10 @@
  * Bump AUTH_GATE_GENERATION to bust stale PWA caches and redirect guests to /login.
  * Does not sign out users who are already logged in.
  */
-export const AUTH_GATE_GENERATION = 7
+export const AUTH_GATE_GENERATION = 8
+
+/** Set on window by the live bundle; missing means Safari is running a cached pre-auth build. */
+export const AUTH_BUNDLE_REV = AUTH_GATE_GENERATION
 
 export const SW_PURGE_LOCAL_KEY = `rhythm-sw-purge-v${AUTH_GATE_GENERATION}`
 export const FORCE_LOGIN_LOCAL_KEY = `rhythm-force-login-v${AUTH_GATE_GENERATION}`
