@@ -2,11 +2,11 @@ import { AUTH_BUNDLE_REV } from './lib/auth/gateVersion'
 
 declare global {
   interface Window {
-    __RHYTHM_AUTH_REV__?: number
+    __RHYTHM_AUTH_REV__?: number | string
   }
 }
 
-window.__RHYTHM_AUTH_REV__ = AUTH_BUNDLE_REV
+window.__RHYTHM_AUTH_REV__ = String(AUTH_BUNDLE_REV)
 
 import { bootstrapApp } from './bootstrap'
 import { StrictMode } from 'react'

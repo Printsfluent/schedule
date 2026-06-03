@@ -147,10 +147,13 @@
         }
         guardLogin();
         setTimeout(function () {
-          if (window.__RHYTHM_AUTH_REV__ !== bundleRev && !isLoginPage()) {
-            if (!hasFirebaseSession()) goLogin();
-            else location.reload();
-          }
+          var liveRev = window.__RHYTHM_AUTH_REV__;
+          if (liveRev == null || String(liveRev) === String(bundleRev) || isLoginPage()) return;
+          var revReloadKey = 'rhythm-auth-rev-reload';
+          if (sessionStorage.getItem(revReloadKey)) return;
+          sessionStorage.setItem(revReloadKey, '1');
+          if (!hasFirebaseSession()) goLogin();
+          else location.reload();
         }, 3000);
       })();
     </script>
