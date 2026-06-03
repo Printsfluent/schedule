@@ -13,14 +13,19 @@ import {
   isOneOffBlock,
   recurringLabel,
 } from '../lib/dates'
-import { cascadeBlocksForDate, getRawBlocksForDate } from '../lib/blockCascade'
+import {
+  cascadeBlocksForDate,
+  findPriorNightSleepBlock,
+  getRawBlocksForDate,
+  previousCalendarDate,
+  sleepDurationForPriorNightWake,
+} from '../lib/blockCascade'
 import { createId } from '../lib/id'
 import { buildPlanDisplayEntries, getDailyPlan, syncPlanItemsForBlock } from '../lib/dailyPlan'
 import {
+  clampSleepDuration,
   formatSleepWakeHint,
   isSleepBlock,
-  normalizeSleepDurations,
-  SLEEP_DURATION_MINUTES,
 } from '../lib/sleepSchedule'
 import { burnoutWarning, scheduledMinutesForDay } from '../lib/burnout'
 import { CATEGORY_COLORS, CATEGORY_LABELS, type ActivityCategory, type Recurring, type TimeBlock } from '../types'
@@ -106,14 +111,11 @@ export function SchedulePage() {
   const applyBlockEdit = useCallback(
     (block: TimeBlock) => {
       const normalized = isSleepBlock(block)
-        ? { ...block, durationMinutes: SLEEP_DURATION_MINUTES }
+        ? { ...block, durationMinutes: clampSleepDuration(block.durationMinutes) }
         : block
       let simulated = state.timeBlocks.map((b) =>
         b.id === normalized.id ? { ...b, ...normalized } : b,
       )
-      if (isSleepBlock(normalized)) {
-        simulated = normalizeSleepDurations(simulated)
-      }
       const cascaded = cascadeBlocksForDate(simulated, selectedDate).find(
         (b) => b.id === normalized.id,
       )
@@ -140,7 +142,20 @@ export function SchedulePage() {
     if (patch.startMinutes != null) {
       const cascaded = getBlocksForDate(state.timeBlocks, selectedDate)
       const idx = cascaded.findIndex((b) => b.id === editing.id)
-      if (idx > 0) {
+      if (idx === 0) {
+        const newSleepDur = sleepDurationForPriorNightWake(
+          state.timeBlocks,
+          selectedDate,
+          patch.startMinutes,
+        )
+        if (newSleepDur != null) {
+          const priorSleep = findPriorNightSleepBlock(state.timeBlocks, selectedDate)
+          if (priorSleep) {
+            const prevKey = formatDateKey(previousCalendarDate(selectedDate))
+            updateTimeBlock(priorSleep.id, { durationMinutes: newSleepDur }, prevKey)
+          }
+        }
+      } else if (idx > 0) {
         const prev = cascaded[idx - 1]
         const newDur = patch.startMinutes - prev.startMinutes
         if (newDur >= 5) {
@@ -361,12 +376,20 @@ export function SchedulePage() {
                     <span className="mt-1 block text-[10px] text-faint">
                       Any format: 9:30 AM · 2 pm · 14:30 · 930 · 9
                     </span>
+                    {editing &&
+                      getBlocksForDate(state.timeBlocks, selectedDate)[0]?.id === editing.id &&
+                      findPriorNightSleepBlock(state.timeBlocks, selectedDate) && (
+                        <span className="mt-1 block text-[10px] text-faint">
+                          Earlier wake shortens last night&apos;s sleep (4–8h).
+                        </span>
+                      )}
                   </label>
                   <label className="block text-xs text-subtle">
                     Duration (min)
                     {isSleepBlock(editing) ? (
                       <p className="mt-1 rounded-xl bg-inset px-3 py-2.5 text-sm text-subtle">
-                        8 hours (fixed) · {formatSleepWakeHint(editing.startMinutes)}
+                        {formatDuration(editing.durationMinutes)} (4–8h) ·{' '}
+                        {formatSleepWakeHint(editing.startMinutes, editing.durationMinutes)}
                       </p>
                     ) : (
                       <>

@@ -1,11 +1,39 @@
 import type { TimeBlock } from '../types'
 import { blockAppliesToday, clampDayMinutes, formatDateKey } from './dates'
-import { isSleepBlock, sleepEndMinutes } from './sleepSchedule'
+import {
+  clampSleepDuration,
+  isSleepBlock,
+  sleepDurationForWake,
+  sleepEndMinutes,
+} from './sleepSchedule'
 
 function sortDayBlocks(blocks: TimeBlock[]): TimeBlock[] {
   return [...blocks].sort(
     (a, b) => a.startMinutes - b.startMinutes || a.id.localeCompare(b.id),
   )
+}
+
+export function previousCalendarDate(date: Date): Date {
+  const prev = new Date(date)
+  prev.setDate(prev.getDate() - 1)
+  return prev
+}
+
+/** Prior night's sleep block with cascaded start time (no recursive wake lookup). */
+export function findPriorNightSleepBlock(allBlocks: TimeBlock[], date: Date): TimeBlock | null {
+  const prevDay = cascadeBlocksForDate(allBlocks, previousCalendarDate(date), null)
+  return [...prevDay].reverse().find(isSleepBlock) ?? null
+}
+
+/** Sleep duration so last night ends at the given wake time. */
+export function sleepDurationForPriorNightWake(
+  allBlocks: TimeBlock[],
+  date: Date,
+  wakeMinutes: number,
+): number | null {
+  const sleep = findPriorNightSleepBlock(allBlocks, date)
+  if (!sleep) return null
+  return clampSleepDuration(sleepDurationForWake(sleep.startMinutes, wakeMinutes))
 }
 
 /** Raw blocks for a date (no time chaining). */
@@ -18,9 +46,7 @@ export function getPriorDaySleepWakeMinutes(
   allBlocks: TimeBlock[],
   date: Date,
 ): number | null {
-  const prev = new Date(date)
-  prev.setDate(prev.getDate() - 1)
-  const prevDay = cascadeBlocksForDate(allBlocks, prev, null)
+  const prevDay = cascadeBlocksForDate(allBlocks, previousCalendarDate(date), null)
   const sleep = [...prevDay].reverse().find(isSleepBlock)
   if (!sleep) return null
   return sleepEndMinutes(sleep.startMinutes, sleep.durationMinutes)
@@ -44,7 +70,7 @@ export function cascadeBlocksForDate(
   const out = ordered.map((block) => ({ ...block }))
 
   if (wake != null) {
-    out[0].startMinutes = clampDayMinutes(Math.max(wake, ordered[0].startMinutes))
+    out[0].startMinutes = clampDayMinutes(wake)
   }
 
   for (let i = 1; i < out.length; i++) {

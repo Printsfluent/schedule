@@ -25,7 +25,7 @@ import { safeStorage } from '../lib/browserCompat'
 import { getDeviceStorageKey, getUserStorageKey, STORAGE_BASE } from '../lib/deviceStorage'
 import { clampDurationSeconds } from '../lib/duration'
 import { applySleepScheduleMigration } from '../lib/ensureSleepBlock'
-import { isSleepBlock, normalizeSleepDurations } from '../lib/sleepSchedule'
+import { clampSleepDuration, isSleepBlock } from '../lib/sleepSchedule'
 import { createId } from '../lib/id'
 
 let storageKey = getDeviceStorageKey(STORAGE_BASE)
@@ -492,13 +492,25 @@ export function useStore() {
         if (updated?.dateKey) {
           timeBlocks = persistOneOffCascadeStarts(timeBlocks, parseDateKey(updated.dateKey))
         }
-        if (updated && isSleepBlock(updated)) {
-          timeBlocks = normalizeSleepDurations(timeBlocks)
+        if (updated && isSleepBlock(updated) && patch.durationMinutes != null) {
+          timeBlocks = timeBlocks.map((b) =>
+            b.id === blockId
+              ? { ...b, durationMinutes: clampSleepDuration(b.durationMinutes) }
+              : b,
+          )
         }
-        const refreshKey = forDateKey ?? formatDateKey(new Date())
-        const log = s.days[refreshKey]
-        const plan = log?.dailyPlan
-        if (log && plan && plan.length > 0) {
+        const refreshKeys = new Set<string>()
+        if (forDateKey) refreshKeys.add(forDateKey)
+        refreshKeys.add(formatDateKey(new Date()))
+        if (updated && isSleepBlock(updated)) {
+          const tomorrow = new Date()
+          tomorrow.setDate(tomorrow.getDate() + 1)
+          refreshKeys.add(formatDateKey(tomorrow))
+        }
+        for (const refreshKey of refreshKeys) {
+          const log = days[refreshKey]
+          const plan = log?.dailyPlan
+          if (!log || !plan || plan.length === 0) continue
           days = {
             ...days,
             [refreshKey]: {
