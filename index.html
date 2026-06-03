@@ -13,14 +13,29 @@
     <script>
       (function () {
         try {
-          var authGate = 'rhythm-auth-gate-v1';
-          if (!localStorage.getItem(authGate)) {
-            for (var j = localStorage.length - 1; j >= 0; j--) {
-              var sk = localStorage.key(j);
-              if (sk && sk.indexOf('sb-') === 0) localStorage.removeItem(sk);
+          var purgeKey = 'rhythm-sw-purge-v3';
+          if (localStorage.getItem(purgeKey)) return;
+          localStorage.setItem(purgeKey, '1');
+          var reloaded = sessionStorage.getItem('rhythm-sw-reload');
+          function maybeReload() {
+            if (!reloaded) {
+              sessionStorage.setItem('rhythm-sw-reload', '1');
+              location.reload();
             }
-            localStorage.setItem(authGate, '1');
           }
+          var p = Promise.resolve();
+          if ('serviceWorker' in navigator) {
+            p = navigator.serviceWorker.getRegistrations().then(function (regs) {
+              return Promise.all(regs.map(function (r) { return r.unregister(); }));
+            });
+          }
+          p.then(function () {
+            if ('caches' in window) {
+              return caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+              });
+            }
+          }).then(maybeReload).catch(maybeReload);
         } catch (e) {}
       })();
     </script>

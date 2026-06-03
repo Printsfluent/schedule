@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { authRedirectUrl } from '../lib/auth/redirectUrl'
 import { applyAuthSessionResetIfNeeded } from '../lib/auth/sessionReset'
 import { isValidEmail, isValidUsername } from '../lib/auth/validation'
 import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient'
@@ -110,7 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
-        options: { data: { username: username.trim().toLowerCase() } },
+        options: {
+          emailRedirectTo: authRedirectUrl(),
+          data: { username: username.trim().toLowerCase() },
+        },
       })
       if (error) return error.message
 

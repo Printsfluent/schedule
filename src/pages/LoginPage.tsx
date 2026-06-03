@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { RhythmLogo } from '../components/RhythmLogo'
 import { Card } from '../components/ui/Card'
@@ -6,28 +6,30 @@ import { useAuth } from '../context/AuthContext'
 
 type Mode = 'signin' | 'signup'
 
-function EyeIcon({ className }: { className?: string }) {
+const EYE_STROKE = '#9db0cc'
+
+function EyeIcon() {
   return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
-        stroke="currentColor"
-        strokeWidth="1.75"
+        stroke={EYE_STROKE}
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="12" cy="12" r="3" stroke={EYE_STROKE} strokeWidth="2" />
     </svg>
   )
 }
 
-function EyeOffIcon({ className }: { className?: string }) {
+function EyeOffIcon() {
   return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M3 3l18 18M10.5 10.7A3 3 0 0 0 12 15a3 3 0 0 0 2.2-5.2M6.7 6.8C4.6 8.1 3 10 2 12c0 0 3.5 7 10 7 1.8 0 3.4-.5 4.8-1.2M9.9 5.1A10.1 10.1 0 0 1 12 5c6.5 0 10 7 10 7a16.2 16.2 0 0 1-3.2 4.2"
-        stroke="currentColor"
-        strokeWidth="1.75"
+        stroke={EYE_STROKE}
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -62,7 +64,7 @@ function PasswordField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
-          className="w-full rounded-2xl border border-border bg-inset py-3 pl-4 pr-11 text-sm outline-none focus:border-accent/50"
+          className="relative z-0 w-full rounded-2xl border border-border bg-inset py-3 pl-4 pr-12 text-sm outline-none focus:border-accent/50"
           placeholder="••••••••"
           minLength={minLength}
           required
@@ -71,7 +73,7 @@ function PasswordField({
           type="button"
           tabIndex={-1}
           onClick={() => setVisible((v) => !v)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-subtle transition-colors hover:text-fg"
+          className="absolute inset-y-0 right-0 z-10 flex w-12 items-center justify-center rounded-r-2xl bg-inset/80"
           aria-label={visible ? 'Hide password' : 'Show password'}
         >
           {visible ? <EyeOffIcon /> : <EyeIcon />}
@@ -116,8 +118,25 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [confirmingEmail, setConfirmingEmail] = useState(false)
 
-  if (!loading && user) {
+  useEffect(() => {
+    const hash = window.location.hash
+    const search = window.location.search
+    if (hash.includes('access_token') || hash.includes('type=signup') || search.includes('code=')) {
+      setConfirmingEmail(true)
+      setInfo('Confirming your email…')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (confirmingEmail && user) {
+      setConfirmingEmail(false)
+      setInfo('Email confirmed! Signed you in.')
+    }
+  }, [confirmingEmail, user])
+
+  if (!loading && user && !confirmingEmail) {
     return <Navigate to="/" replace />
   }
 

@@ -48,6 +48,7 @@ export default defineConfig({
         description: 'Schedule & productivity for remote life balance',
         theme_color: '#0a0e14',
         background_color: '#0a0e14',
+        start_url: `${webBase}login`,
         display: 'standalone',
         orientation: 'portrait',
         icons: [
@@ -55,20 +56,25 @@ export default defineConfig({
         ],
       },
       workbox: {
-        cacheId: 'rhythm-auth-v2',
+        cacheId: 'rhythm-auth-v3',
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
+        navigateFallback: undefined,
+        globPatterns: ['**/*.{ico,svg,woff2,webmanifest}'],
         importScripts: ['rhythm-plan-alarms.js'],
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /\.(?:js|css)$/i,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'rhythm-pages',
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 },
+              cacheName: 'rhythm-assets',
+              networkTimeoutSeconds: 8,
+              expiration: { maxEntries: 32, maxAgeSeconds: 60 * 60 * 24 },
             },
           },
           {

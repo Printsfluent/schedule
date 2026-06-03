@@ -147,7 +147,8 @@ export default function App() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    const loginTarget = `/login${location.search}${location.hash}`
+    return <Navigate to={loginTarget} replace />
   }
 
   return (

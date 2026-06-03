@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { clearSupabaseAuthStorage } from './clearSupabaseStorage'
 
 /** Bump to sign out every client on their next visit (e.g. when login becomes required). */
-export const AUTH_SESSION_RESET_VERSION = 2
+export const AUTH_SESSION_RESET_VERSION = 3
 
 const VERSION_KEY = 'rhythm-auth-reset-version'
 

@@ -1,4 +1,12 @@
 -- Run in Supabase SQL editor after enabling Email auth in Authentication → Providers.
+--
+-- Supabase Dashboard → Authentication → URL configuration:
+--   Site URL: your production app (e.g. https://your-app.vercel.app)
+--   Redirect URLs (add every host you use):
+--     https://your-app.vercel.app/**
+--     https://printsfluent.github.io/schedule/**
+--     http://localhost:5173/**
+-- Email confirmation links must redirect to /login on your app domain.
 
 -- Optional: store username on signup (also saved in user_metadata from the app).
 create table if not exists public.profiles (
