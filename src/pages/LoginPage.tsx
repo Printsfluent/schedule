@@ -6,6 +6,81 @@ import { useAuth } from '../context/AuthContext'
 
 type Mode = 'signin' | 'signup'
 
+function EyeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
+    </svg>
+  )
+}
+
+function EyeOffIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 3l18 18M10.5 10.7A3 3 0 0 0 12 15a3 3 0 0 0 2.2-5.2M6.7 6.8C4.6 8.1 3 10 2 12c0 0 3.5 7 10 7 1.8 0 3.4-.5 4.8-1.2M9.9 5.1A10.1 10.1 0 0 1 12 5c6.5 0 10 7 10 7a16.2 16.2 0 0 1-3.2 4.2"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  autoComplete,
+  minLength = 6,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  autoComplete?: string
+  minLength?: number
+}) {
+  const [visible, setVisible] = useState(false)
+
+  return (
+    <label className="block" htmlFor={id}>
+      <span className="mb-1 block text-xs font-medium text-muted">{label}</span>
+      <div className="relative">
+        <input
+          id={id}
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          autoComplete={autoComplete}
+          className="w-full rounded-2xl border border-border bg-inset py-3 pl-4 pr-11 text-sm outline-none focus:border-accent/50"
+          placeholder="••••••••"
+          minLength={minLength}
+          required
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setVisible((v) => !v)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-subtle transition-colors hover:text-fg"
+          aria-label={visible ? 'Hide password' : 'Show password'}
+        >
+          {visible ? <EyeOffIcon /> : <EyeIcon />}
+        </button>
+      </div>
+    </label>
+  )
+}
+
 function SupabaseSetupNotice() {
   return (
     <Card glow="#6ea8fe">
@@ -163,34 +238,22 @@ export function LoginPage() {
                 </>
               )}
 
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-muted">Password</span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                  className="w-full rounded-2xl border border-border bg-inset px-4 py-3 text-sm outline-none focus:border-accent/50"
-                  placeholder="••••••••"
-                  minLength={6}
-                  required
-                />
-              </label>
+              <PasswordField
+                id="login-password"
+                label="Password"
+                value={password}
+                onChange={setPassword}
+                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+              />
 
               {mode === 'signup' && (
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-muted">Confirm password</span>
-                  <input
-                    type="password"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                    autoComplete="new-password"
-                    className="w-full rounded-2xl border border-border bg-inset px-4 py-3 text-sm outline-none focus:border-accent/50"
-                    placeholder="••••••••"
-                    minLength={6}
-                    required
-                  />
-                </label>
+                <PasswordField
+                  id="login-confirm-password"
+                  label="Confirm password"
+                  value={confirm}
+                  onChange={setConfirm}
+                  autoComplete="new-password"
+                />
               )}
 
               {error && <p className="text-xs text-[#e76f6f]">{error}</p>}
