@@ -5,14 +5,8 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AuthProvider } from './context/AuthContext'
-import { deleteAllCaches, unregisterAllServiceWorkers } from './lib/unregisterServiceWorkers'
 import './index.css'
 import App from './App'
-
-if (import.meta.env.PROD && !Capacitor.isNativePlatform()) {
-  void unregisterAllServiceWorkers()
-  void deleteAllCaches()
-}
 
 if (import.meta.env.DEV && !Capacitor.isNativePlatform()) {
   if ('serviceWorker' in navigator) {

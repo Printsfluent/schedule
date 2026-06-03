@@ -1,4 +1,5 @@
 import { bootstrapAppUpdate } from './lib/appUpdate'
+import { hasStoredFirebaseSession } from './lib/auth/hasFirebaseSession'
 import { enforceForceLoginGate, redirectToLoginIfGuest } from './lib/auth/forceLoginGate'
 import { bootstrapBrowserCompat } from './lib/browserCompat'
 import { bootstrapTheme } from './lib/theme'
@@ -9,13 +10,14 @@ export async function bootstrapApp(): Promise<void> {
   bootstrapTheme()
 
   if (import.meta.env.PROD && !import.meta.env.SSR) {
-    await unregisterAllServiceWorkers()
-    await deleteAllCaches()
+    if (enforceForceLoginGate()) return
 
-    const redirected = await enforceForceLoginGate()
-    if (redirected) return
-
-    if (redirectToLoginIfGuest()) return
+    const hasSession = hasStoredFirebaseSession()
+    if (!hasSession) {
+      await unregisterAllServiceWorkers()
+      await deleteAllCaches()
+      if (redirectToLoginIfGuest()) return
+    }
 
     const reloaded = await bootstrapAppUpdate()
     if (reloaded) return

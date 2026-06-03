@@ -1,88 +1,164 @@
 # Rhythm
 
-A mobile-first schedule and productivity app for young professionals balancing work, fitness, programming study, social life, and recovery.
+A mobile-first schedule and productivity app for balancing work, fitness, study, social life, and recovery.
 
 Designed to feel **realistic, motivating, and sustainable** — not corporate or robotic.
 
-## What users see
+**Live app:** [rhythm-tau.vercel.app](https://rhythm-tau.vercel.app)
+
+## What Rhythm does
 
 **Rhythm** helps you plan each day, stay focused, and build habits without punishing you for missed days.
 
-- **Home** — today’s plan, mood, progress, and what’s coming up  
-- **Plan** — color-coded time blocks you can drag into order  
-- **Focus** — Pomodoro / deep-work timers with ambient sound  
-- **Habits** — streaks with grace days (consistency over perfection)  
-- **Insights** — charts, sleep logging, balance tips, and reminders  
-
-Sign in with email or Google. Your schedule and habits are stored on your device; your account keeps the app private to you.
-
-## Features
-
-### Core
-- **Dashboard** — day overview, active task, progress %, daily quote, mood/energy, upcoming blocks
-- **Schedule planner** — editable, color-coded time blocks with drag-and-drop reorder
-- **Focus mode** — Pomodoro, deep work, and study timers with break reminders
-- **Habit tracker** — flexible streaks, recovery days, consistency scoring
-- **Analytics** — weekly productivity, study/focus hours, mood vs productivity charts, sleep logging
-- **Balance** — fun/rest scheduling, weekend reset planner, burnout prevention tips
-- **Calendar** — monthly view with completion and mood indicators
+| Tab | What it does |
+|-----|--------------|
+| **Home** | Today’s plan, mood, progress, quotes, and what’s coming up |
+| **Plan** | Color-coded time blocks — drag to reorder, edit labels (default blocks use **Work**, not fixed copy) |
+| **Focus** | Pomodoro and deep-work timers with ambient sound |
+| **Habits** | Daily habits, streaks, grace days, recovery/outage tags |
+| **Insights** | Analytics, calendar, settings, **About Rhythm**, account, and reminders |
 
 ### Philosophy
-- Missed days don't destroy streaks (2 grace days/week)
+
+- Missed days don’t destroy streaks (2 grace days/week)
 - Recovery days count
 - Power/internet outage tags lower the bar
 - Mood and energy adjust expectations
-- Consistency > perfection
+- Consistency over perfection
 
-### Technical
-- Dark mode UI (iOS-inspired)
-- Smooth animations
-- Browser notifications
-- Offline support (PWA + localStorage)
-- iPhone-optimized viewport & safe areas
+### Data and privacy
 
-## How to view it
+- **Sign-in required** — Firebase Auth gates the app
+- **Schedule and habits** stay in your browser (`localStorage`) on each device
+- Your Firebase account identifies you; plan data does not sync to the cloud yet
 
-### Development (recommended)
+## Authentication
+
+Rhythm uses **Firebase Auth** (email/password + Google).
+
+### Sign in / sign up
+
+On the login screen, use **one field: Email or username**.
+
+| You enter | What happens |
+|-----------|----------------|
+| **Email** (contains `@`) | Signs in with that email and your password |
+| **Username** (no `@`) | Signs in with the username account created at sign-up (`username@YOUR_PROJECT_ID.rhythm.auth` internally) |
+
+You can also use **Continue with Google**.
+
+After a successful email sign-in on a device, the app remembers your username locally so you can sign in with either email or username next time.
+
+### Environment variables
+
+Copy `.env.example` to `.env` and fill in your Firebase web app config:
+
+```env
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_APP_ID=...
+
+# Optional — skip email verification links during testing
+VITE_FIREBASE_SKIP_EMAIL_VERIFICATION=true
+```
+
+Step-by-step Firebase setup: [`firebase/SETUP.md`](firebase/SETUP.md)
+
+### About the app (in the UI)
+
+The **About Rhythm** blurb lives under **Insights → Settings**, not on the login page.
+
+## Local development
 
 ```bash
-cd "/Users/USER/Documents/ cursor_projects/schedule"
 npm install
+cp .env.example .env   # then add your Firebase keys
 npm run dev
 ```
 
-Open **http://localhost:5173** in your browser.
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | HTTPS dev server at `https://localhost:5173` (default) |
+| `npm run dev:http` | HTTP only (notifications limited on phones) |
+| `npm run preview` | Preview production build locally |
 
-**On iPhone:** run with network access, then open the Network URL on your phone (same Wi‑Fi):
+Open **https://localhost:5173/login** after starting the dev server.
 
-```bash
-npm run dev -- --host
-```
+**On iPhone (same Wi‑Fi):** use the Network URL printed in the terminal (accept the certificate warning once).
 
-### Install as app (PWA)
-
-1. Run `npm run build && npm run preview`
-2. Open the preview URL in Safari (iPhone) or Chrome
-3. **iPhone:** Share → Add to Home Screen
-4. **Android/Chrome:** Install app prompt or menu → Install
-
-### Production build
+## Production build
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## Screens
+## Deploy
 
-| Tab | What it does |
-|-----|--------------|
-| **Home** | Today's progress, quote, mood, upcoming blocks, quick tasks |
-| **Plan** | Edit schedule blocks, drag to reorder, set recurring routines |
-| **Focus** | Timers + ambient sounds (rain, brown noise, lo-fi) |
-| **Habits** | Daily habits, streaks, recovery/outage tags |
-| **Insights** | Analytics, balance planner, calendar |
+### Vercel (recommended)
+
+1. Connect the repo to Vercel
+2. Add all `VITE_FIREBASE_*` variables under **Project → Settings → Environment Variables**
+3. Redeploy after changing env vars
+
+```bash
+npx vercel login
+npx vercel link
+npm run deploy:env   # push .env Firebase vars to Vercel
+npm run deploy       # build and deploy to production
+```
+
+### GitHub Pages
+
+The workflow in `.github/workflows/deploy-pages.yml` builds with `VITE_BASE_PATH=/schedule/` and expects Firebase secrets in the repository settings.
+
+## Install as an app (PWA)
+
+1. `npm run build && npm run preview` (or use the deployed URL)
+2. Open in Safari (iPhone) or Chrome
+3. **iPhone:** Share → Add to Home Screen
+4. **Android/Chrome:** Install when prompted
+
+The service worker registers **after** sign-in so guests always get a fresh login page.
 
 ## Notifications
 
-Go to **Insights → Balance → Reminders** and tap **Enable notifications**. Keep the app open or installed as PWA for reminders to fire.
+**Insights → Settings** — enable reminders in the alarm/notification panels. Works best with the app installed as a PWA or kept open on mobile.
+
+## Native apps (Capacitor)
+
+```bash
+npm run cap:sync
+npm run cap:ios      # or cap:android
+```
+
+## Tech stack
+
+- React 19 + TypeScript + Vite
+- Tailwind CSS 4
+- Firebase Auth
+- PWA (Vite PWA plugin)
+- Capacitor (optional iOS/Android)
+- Deploy: Vercel and/or GitHub Pages
+
+## Project layout
+
+| Path | Purpose |
+|------|---------|
+| `src/pages/` | Main screens (Home, Plan, Focus, Habits, Insights, Login) |
+| `src/context/AuthContext.tsx` | Firebase session and sign-in/up |
+| `src/lib/auth/` | Validation, username/email resolution, session reset |
+| `src/content/appSummary.ts` | About copy shown in Insights → Settings |
+| `firebase/SETUP.md` | Firebase console checklist |
+| `scripts/sync-vercel-env.sh` | Sync `.env` to Vercel |
+
+## Staying signed in
+
+Firebase sessions use **browser local persistence**. Users remain logged in across visits, app restarts, and new deploys until they tap **Sign out** in **Insights → Settings → Account**.
+
+Deploys only refresh the PWA cache for guests; they do not clear Firebase auth tokens.
+
+## Forcing guests to the login page
+
+Bump `AUTH_GATE_GENERATION` in `src/lib/auth/gateVersion.ts` to bust stale caches and redirect **unsigned** visitors to `/login`. Signed-in users are not logged out automatically.

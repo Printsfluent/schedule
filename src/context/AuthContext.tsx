@@ -29,7 +29,7 @@ import {
 import { isValidUsername } from '../lib/auth/validation'
 import { emailVerificationContinueUrl } from '../lib/auth/verificationUrl'
 import { loginPath, redirectToLoginIfGuest } from '../lib/auth/forceLoginGate'
-import { getFirebaseAuth, isFirebaseConfigured } from '../lib/firebase'
+import { getFirebaseAuth, isFirebaseConfigured, waitForAuthPersistence } from '../lib/firebase'
 import { registerProductionPwa, resetPwaRegistration } from '../lib/registerPwa'
 import { deleteAllCaches, unregisterAllServiceWorkers } from '../lib/unregisterServiceWorkers'
 
@@ -108,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void (async () => {
       await applyAuthSessionResetIfNeeded(auth)
+      await waitForAuthPersistence()
     })()
 
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
@@ -129,20 +130,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
-      const auth = getFirebaseAuth()
-      if (!auth?.currentUser) {
-        setUser(null)
-        redirectToLoginIfGuest()
-        return
-      }
-      if (event.persisted) {
-        void auth.currentUser.reload().then(() => {
+      void (async () => {
+        const auth = getFirebaseAuth()
+        if (!auth) return
+        await waitForAuthPersistence()
+        if (!auth.currentUser) {
+          setUser(null)
+          redirectToLoginIfGuest()
+          return
+        }
+        if (event.persisted) {
+          await auth.currentUser.reload()
           applyFirebaseUser(auth.currentUser)
-        })
-      }
+        }
+      })()
     }
     const onVisible = () => {
-      if (document.visibilityState === 'visible' && !user) redirectToLoginIfGuest()
+      if (document.visibilityState !== 'visible' || user) return
+      void waitForAuthPersistence().then(() => {
+        const auth = getFirebaseAuth()
+        if (!auth?.currentUser) redirectToLoginIfGuest()
+      })
     }
     window.addEventListener('pageshow', onPageShow)
     document.addEventListener('visibilitychange', onVisible)
@@ -209,9 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const provider = new GoogleAuthProvider()
-      provider.setCustomParameters({ prompt: 'select_account' })
-      const credential = await signInWithPopup(auth, provider)
+      const credential = await signInWithPopup(auth, new GoogleAuthProvider())
       applyFirebaseUser(credential.user)
       return { status: 'signed_in' }
     } catch (err) {

@@ -1,6 +1,6 @@
 /**
- * Bump AUTH_GATE_GENERATION to force every client back to /login and drop stale PWA caches.
- * Keep in sync with index.html placeholders (injected at build time).
+ * Bump AUTH_GATE_GENERATION to bust stale PWA caches and redirect guests to /login.
+ * Does not sign out users who are already logged in.
  */
 export const AUTH_GATE_GENERATION = 7
 

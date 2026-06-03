@@ -1,7 +1,5 @@
-import { clearAuthStorage } from './clearAuthStorage'
 import { FORCE_LOGIN_LOCAL_KEY } from './gateVersion'
 import { hasStoredFirebaseSession } from './hasFirebaseSession'
-import { deleteAllCaches, unregisterAllServiceWorkers } from '../unregisterServiceWorkers'
 
 export function loginPath(): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '') || ''
@@ -12,23 +10,14 @@ function isLoginPath(pathname: string): boolean {
   return pathname === '/login' || pathname.endsWith('/login')
 }
 
-async function clearPwaCaches(): Promise<void> {
-  await unregisterAllServiceWorkers()
-  await deleteAllCaches()
-}
-
 /**
- * One-time per AUTH_GATE_GENERATION: clear auth tokens and send users to /login.
- * Returns true if navigation was started (callers should not mount React).
+ * One-time per AUTH_GATE_GENERATION: send guests to /login (signed-in users stay logged in).
  */
-export async function enforceForceLoginGate(): Promise<boolean> {
+export function enforceForceLoginGate(): boolean {
   if (!import.meta.env.PROD || typeof window === 'undefined') return false
   if (localStorage.getItem(FORCE_LOGIN_LOCAL_KEY) === 'done') return false
 
-  clearAuthStorage()
-  await clearPwaCaches()
   localStorage.setItem(FORCE_LOGIN_LOCAL_KEY, 'done')
-
   return redirectToLoginIfGuest()
 }
 
