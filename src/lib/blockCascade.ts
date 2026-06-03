@@ -1,5 +1,5 @@
 import type { TimeBlock } from '../types'
-import { blockAppliesToday, clampDayMinutes, formatDateKey, formatTime } from './dates'
+import { blockAppliesToday, clampDayMinutes, formatDateKey, formatDuration, formatTime } from './dates'
 import {
   clampSleepDuration,
   isSleepBlock,
@@ -34,20 +34,53 @@ export function getNextDayFirstBlockWakeMinutes(
   return nextDay.length > 0 ? nextDay[0].startMinutes : null
 }
 
-/** Sleep row label — always matches the next day's first block time when available. */
+export type ResolvedSleepTimes = {
+  startMinutes: number
+  endMinutes: number
+  durationMinutes: number
+}
+
+/** Bedtime → wake from cascaded start and next day's first block (correct across midnight). */
+export function resolveSleepTimes(
+  allBlocks: TimeBlock[],
+  sleepBlock: TimeBlock,
+  onDate: Date,
+): ResolvedSleepTimes {
+  const cascaded = cascadeBlocksForDate(allBlocks, onDate, null).find((b) => b.id === sleepBlock.id)
+  const start = cascaded?.startMinutes ?? sleepBlock.startMinutes
+  const nextWake = getNextDayFirstBlockWakeMinutes(allBlocks, onDate)
+  const end =
+    nextWake ??
+    sleepEndMinutes(start, cascaded?.durationMinutes ?? sleepBlock.durationMinutes)
+  const duration = sleepDurationForWake(start, end)
+  return {
+    startMinutes: start,
+    endMinutes: end,
+    durationMinutes: clampSleepDuration(duration),
+  }
+}
+
+/** e.g. "11:30 PM – 7:00 AM · 7h 30m" */
+export function formatSleepBlockTimes(
+  allBlocks: TimeBlock[],
+  sleepBlock: TimeBlock,
+  onDate: Date,
+): string {
+  const { startMinutes, endMinutes, durationMinutes } = resolveSleepTimes(
+    allBlocks,
+    sleepBlock,
+    onDate,
+  )
+  return `${formatTime(startMinutes)} – ${formatTime(endMinutes)} · ${formatDuration(durationMinutes)}`
+}
+
+/** @deprecated Use formatSleepBlockTimes */
 export function formatSleepWakeLabel(
   allBlocks: TimeBlock[],
   sleepBlock: TimeBlock,
   onDate: Date,
 ): string {
-  const nextWake = getNextDayFirstBlockWakeMinutes(allBlocks, onDate)
-  if (nextWake != null) {
-    return `Wake ~${formatTime(nextWake)}`
-  }
-  const cascaded = cascadeBlocksForDate(allBlocks, onDate, null).find((b) => b.id === sleepBlock.id)
-  const start = cascaded?.startMinutes ?? sleepBlock.startMinutes
-  const duration = cascaded?.durationMinutes ?? sleepBlock.durationMinutes
-  return `Wake ~${formatTime(sleepEndMinutes(start, duration))}`
+  return formatSleepBlockTimes(allBlocks, sleepBlock, onDate)
 }
 
 /** Set last night's sleep duration so it ends when the next day's first block starts. */
