@@ -4,6 +4,18 @@ A mobile-first schedule and productivity app for young professionals balancing r
 
 Designed to feel **realistic, motivating, and sustainable** — not corporate or robotic.
 
+## What users see
+
+**Rhythm** helps you plan each day, stay focused, and build habits without punishing you for missed days.
+
+- **Home** — today’s plan, mood, progress, and what’s coming up  
+- **Plan** — color-coded time blocks you can drag into order  
+- **Focus** — Pomodoro / deep-work timers with ambient sound  
+- **Habits** — streaks with grace days (consistency over perfection)  
+- **Insights** — charts, sleep logging, balance tips, and reminders  
+
+Sign in with email or Google. Your schedule and habits are stored on your device; your account keeps the app private to you.
+
 ## Features
 
 ### Core

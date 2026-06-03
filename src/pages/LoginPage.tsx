@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import { AppAboutSummary } from '../components/AppAboutSummary'
 import { RhythmLogo } from '../components/RhythmLogo'
 import { Card } from '../components/ui/Card'
 import { useAuth } from '../context/AuthContext'
@@ -310,6 +311,8 @@ export function LoginPage() {
             {mode === 'signin' ? 'Sign in to continue' : 'Create your account'}
           </p>
         </div>
+
+        <AppAboutSummary />
 
         {!authConfigured ? (
           <FirebaseSetupNotice />

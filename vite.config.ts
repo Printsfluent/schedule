@@ -64,7 +64,8 @@ export default defineConfig({
       manifest: {
         name: 'Rhythm',
         short_name: 'Rhythm',
-        description: 'Schedule & productivity for remote life balance',
+        description:
+          'Plan your day, run focus timers, track habits, and balance work, study, fitness, and rest.',
         theme_color: '#0a0e14',
         background_color: '#0a0e14',
         start_url: `${webBase}login`,
