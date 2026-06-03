@@ -22,6 +22,7 @@ import { addXp, defaultGamification, xpForCategory } from '../lib/gamification'
 import { safeStorage } from '../lib/browserCompat'
 import { getDeviceStorageKey, getUserStorageKey, STORAGE_BASE } from '../lib/deviceStorage'
 import { clampDurationSeconds } from '../lib/duration'
+import { applySleepScheduleMigration } from '../lib/ensureSleepBlock'
 import { createId } from '../lib/id'
 
 let storageKey = getDeviceStorageKey(STORAGE_BASE)
@@ -211,19 +212,31 @@ function migrate(raw: Partial<AppState>): AppState {
   }
 }
 
+function finalizeLoadedState(key: string, loaded: AppState): AppState {
+  const [state, changed] = applySleepScheduleMigration(loaded)
+  if (changed) {
+    try {
+      safeStorage.setItem(key, JSON.stringify(state))
+    } catch {
+      /* quota */
+    }
+  }
+  return state
+}
+
 function load(key: string = storageKey): AppState {
   if (typeof window === 'undefined') {
     return defaultState()
   }
   try {
     const raw = safeStorage.getItem(key)
-    if (raw) return migrate(JSON.parse(raw) as Partial<AppState>)
+    if (raw) return finalizeLoadedState(key, migrate(JSON.parse(raw) as Partial<AppState>))
     const legacy = safeStorage.getItem('schedule-app-state')
-    if (legacy) return migrate(JSON.parse(legacy) as Partial<AppState>)
+    if (legacy) return finalizeLoadedState(key, migrate(JSON.parse(legacy) as Partial<AppState>))
   } catch {
     /* ignore corrupt storage */
   }
-  return defaultState()
+  return finalizeLoadedState(key, defaultState())
 }
 
 export function setCloudPushHandler(handler: ((s: AppState) => void) | null): void {
@@ -255,7 +268,8 @@ export function getAppState(): AppState {
 }
 
 export function replaceAppState(next: AppState): void {
-  state = migrate(next)
+  const [migrated] = applySleepScheduleMigration(migrate(next))
+  state = migrated
   skipCloudPush = true
   try {
     safeStorage.setItem(storageKey, JSON.stringify(state))
