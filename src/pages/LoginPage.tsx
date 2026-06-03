@@ -369,6 +369,9 @@ export function LoginPage() {
                   placeholder="you@email.com or yourname"
                   required
                 />
+                <p className="mt-1 text-[10px] leading-relaxed text-faint">
+                  Use the same email or username you signed up with.
+                </p>
               </label>
 
               <PasswordField

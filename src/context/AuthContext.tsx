@@ -21,7 +21,11 @@ import {
 import { skipEmailVerification } from '../lib/auth/config'
 import { messageFromUnknownError } from '../lib/auth/errors'
 import { applyAuthSessionResetIfNeeded } from '../lib/auth/sessionReset'
-import { resolveAuthIdentifier } from '../lib/auth/resolveAuthIdentifier'
+import {
+  resolveAuthIdentifier,
+  signInEmailAttempts,
+  storeUsernameLoginEmail,
+} from '../lib/auth/resolveAuthIdentifier'
 import { isValidUsername } from '../lib/auth/validation'
 import { emailVerificationContinueUrl } from '../lib/auth/verificationUrl'
 import { loginPath, redirectToLoginIfGuest } from '../lib/auth/forceLoginGate'
@@ -162,17 +166,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { status: 'error', message: resolved.message }
     }
 
-    try {
-      const credential = await signInWithEmailAndPassword(auth, resolved.email, password)
-      if (!credential.user.emailVerified && !skipEmailVerification()) {
-        return { status: 'verify_email' }
+    const emailsToTry = signInEmailAttempts(identifier)
+    let lastErr: unknown = null
+
+    for (const email of emailsToTry) {
+      try {
+        const credential = await signInWithEmailAndPassword(auth, email, password)
+        if (!credential.user.emailVerified && !skipEmailVerification()) {
+          return { status: 'verify_email' }
+        }
+        const loginName = resolved.usedUsername
+          ? resolved.username
+          : credential.user.displayName ?? resolved.username
+        if (loginName && credential.user.email) {
+          storeUsernameLoginEmail(loginName, credential.user.email)
+        }
+        if (resolved.usedUsername && credential.user.email) {
+          storeUsernameLoginEmail(resolved.username, credential.user.email)
+        }
+        applyFirebaseUser(credential.user)
+        return { status: 'signed_in' }
+      } catch (err) {
+        lastErr = err
+        const { code } = messageFromUnknownError(err)
+        if (code !== 'auth/invalid-credential' && code !== 'auth/user-not-found' && code !== 'auth/wrong-password') {
+          break
+        }
       }
-      applyFirebaseUser(credential.user)
-      return { status: 'signed_in' }
-    } catch (err) {
-      const { message, code } = messageFromUnknownError(err)
-      return { status: 'error', message, code }
     }
+
+    const { message, code } = messageFromUnknownError(lastErr)
+    return { status: 'error', message, code }
   }, [applyFirebaseUser])
 
   const signInWithGoogle = useCallback(async (): Promise<SignInResult> => {
@@ -226,6 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const credential = await createUserWithEmailAndPassword(auth, resolved.email, password)
         await updateProfile(credential.user, { displayName: resolved.username })
+        storeUsernameLoginEmail(resolved.username, credential.user.email ?? resolved.email)
 
         if (credential.user.emailVerified || skipEmailVerification()) {
           applyFirebaseUser(credential.user)
