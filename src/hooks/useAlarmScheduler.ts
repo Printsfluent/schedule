@@ -7,7 +7,12 @@ import { isSameLocalMinute } from '../lib/deviceTime'
 import { getDeviceStorageKey } from '../lib/deviceStorage'
 import { detectPlatform, isStandalonePwa, platformSettingsHint } from '../lib/devicePlatform'
 import { requestNotificationPermissionCompat, safeStorage } from '../lib/browserCompat'
-import { getPlanAlarmTriggers, shouldFirePlanAlarmTrigger } from '../lib/planAlarms'
+import {
+  getBlockAlarmTriggers,
+  getTimedScheduleItems,
+  isBlockAlarmComplete,
+  shouldFireBlockAlarmTrigger,
+} from '../lib/scheduleAlerts'
 import { isPlanItemSnoozed } from '../lib/smartSnooze'
 import {
   canFireReminder,
@@ -99,15 +104,6 @@ function unmarkFired(id: string) {
 
 export function clearFiredRemindersToday() {
   safeStorage.removeItem(FIRED_KEY)
-}
-
-function isPlanItemComplete(planItemId: string, log: DayLog, timeBlocks: TimeBlock[]): boolean {
-  const item = log.dailyPlan?.find((p) => p.id === planItemId)
-  if (!item) return false
-  if (item.kind === 'custom') return Boolean(item.done)
-  if (item.blockId) return log.completedBlockIds.includes(item.blockId)
-  const block = timeBlocks.find((b) => b.id === item.blockId)
-  return block ? log.completedBlockIds.includes(block.id) : false
 }
 
 function shouldFireReminder(
@@ -276,25 +272,27 @@ export function useAlarmScheduler({ settings, todayKey, todayLog, timeBlocks }: 
       }
 
       const dailyPlan = log.dailyPlan ?? []
+      const hasBlockSchedule = getTimedScheduleItems(dailyPlan, timeBlocks, now).length > 0
 
-      if (dailyPlan.length === 0) {
-        for (const reminder of SCHEDULE_REMINDERS) {
-          if (reminder.id === WAKE_ALARM_ID) continue
-          if (fired.has(reminder.id)) continue
-          if (!shouldFireReminder(reminder, now, settingsRef.current.notifications, log)) continue
-          fireAlarm(reminder.id, reminder.label, reminder.body)
-        }
-      } else if (isDayStarted(log)) {
-        const planTriggers = getPlanAlarmTriggers(dailyPlan, timeBlocks, now)
+      for (const reminder of SCHEDULE_REMINDERS) {
+        if (reminder.id === WAKE_ALARM_ID) continue
+        if (hasBlockSchedule && reminder.id !== 'burnout' && reminder.id !== 'sat-code') continue
+        if (fired.has(reminder.id)) continue
+        if (!shouldFireReminder(reminder, now, settingsRef.current.notifications, log)) continue
+        fireAlarm(reminder.id, reminder.label, reminder.body)
+      }
+
+      if (isDayStarted(log)) {
+        const blockTriggers = getBlockAlarmTriggers(dailyPlan, timeBlocks, now)
         const persistent = settingsRef.current.persistentReminders
-        for (const trigger of planTriggers) {
-          if (isPlanItemSnoozed(log.planSnoozes, trigger.planItemId)) continue
-          if (isPlanItemComplete(trigger.planItemId, log, timeBlocks)) {
+        for (const trigger of blockTriggers) {
+          if (trigger.planItemId && isPlanItemSnoozed(log.planSnoozes, trigger.planItemId)) continue
+          if (isBlockAlarmComplete(trigger, log)) {
             if (!fired.has(trigger.id)) markFired(trigger.id)
             continue
           }
           if (fired.has(trigger.id) && !persistent) continue
-          if (!shouldFirePlanAlarmTrigger(trigger, now)) continue
+          if (!shouldFireBlockAlarmTrigger(trigger, now)) continue
           fireAlarm(trigger.id, trigger.label, trigger.body)
         }
       }

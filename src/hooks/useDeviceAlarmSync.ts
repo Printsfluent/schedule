@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { getTomorrowKey } from '../lib/dates'
+import { getBlocksForDate, getTomorrowKey, parseDateKey } from '../lib/dates'
 import { syncDeviceAlarms } from '../lib/deviceAlarms'
 import type { NativeSyncContext } from '../lib/nativeNotifications'
 import type { AppSettings, DayLog } from '../types'
@@ -18,14 +18,23 @@ export function useDeviceAlarmSync({ settings, todayKey, todayLog, timeBlocks, g
   const tomorrowPlanKey = (tomorrowLog?.dailyPlan ?? []).map((item) => item.id).join(',')
 
   useEffect(() => {
-    if (todayPlanKey.length === 0 && tomorrowPlanKey.length === 0) return
+    const todayHasBlocks = getBlocksForDate(timeBlocks, parseDateKey(todayKey)).length > 0
+    const tomorrowHasBlocks = getBlocksForDate(timeBlocks, parseDateKey(tomorrowKey)).length > 0
+    if (
+      todayPlanKey.length === 0 &&
+      tomorrowPlanKey.length === 0 &&
+      !todayHasBlocks &&
+      !tomorrowHasBlocks
+    ) {
+      return
+    }
 
-    const syncKey = `${todayKey}:${todayPlanKey}:${tomorrowKey}:${tomorrowPlanKey}:${settings.enabled}:${settings.alarmStyle}`
+    const syncKey = `${todayKey}:${todayPlanKey}:${tomorrowKey}:${tomorrowPlanKey}:${todayHasBlocks}:${tomorrowHasBlocks}:${settings.enabled}:${settings.alarmStyle}`
     if (syncKey === lastSyncKey.current) return
     lastSyncKey.current = syncKey
 
     const contexts: NativeSyncContext[] = [{ todayKey, todayLog, timeBlocks }]
-    if (tomorrowLog && tomorrowPlanKey.length > 0) {
+    if (tomorrowLog && (tomorrowPlanKey.length > 0 || tomorrowHasBlocks)) {
       contexts.push({ todayKey: tomorrowKey, todayLog: tomorrowLog, timeBlocks })
     }
     void syncDeviceAlarms(settings, contexts)

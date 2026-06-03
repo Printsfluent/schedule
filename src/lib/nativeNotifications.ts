@@ -3,7 +3,7 @@ import { LocalNotifications } from '@capacitor/local-notifications'
 import { SCHEDULE_REMINDERS } from '../data/notifications'
 import { parseDateKey } from './dates'
 import { minutesToLocalDate } from './deviceTime'
-import { getPlanAlarmTriggers } from './planAlarms'
+import { getBlockAlarmTriggers } from './scheduleAlerts'
 import type { AppSettings, DayLog, TimeBlock } from '../types'
 
 const REMINDER_ID_BASE = 1000
@@ -63,7 +63,15 @@ export async function syncNativeScheduleReminders(
     return { ok: false, message: 'Native alarms run in the App Store / Play Store build only.' }
   }
 
-  if (!settings.enabled && !(context?.todayLog.dailyPlan?.length ?? 0)) {
+  const hasTimedItems =
+    context &&
+    getBlockAlarmTriggers(
+      context.todayLog.dailyPlan ?? [],
+      context.timeBlocks,
+      parseDateKey(context.todayKey),
+    ).length > 0
+
+  if (!settings.enabled && !hasTimedItems) {
     await cancelNativeReminders()
     return { ok: true, message: 'Native reminders turned off.' }
   }
@@ -80,34 +88,36 @@ export async function syncNativeScheduleReminders(
   const sound = settings.alarmStyle === 'off' ? undefined : 'default'
   const channelId = Capacitor.getPlatform() === 'android' ? ALARM_CHANNEL_ID : undefined
 
-  if (dailyPlan.length > 0 && context) {
+  if (context) {
     const now = Date.now()
     const forDate = parseDateKey(context.todayKey)
-    const triggers = getPlanAlarmTriggers(dailyPlan, context.timeBlocks, forDate)
-    const notifications = triggers
-      .map((trigger, index) => {
-        const at = minutesToLocalDate(trigger.startMinutes, forDate)
-        if (at.getTime() <= now) return null
-        return {
-          id: planNumericId(index),
-          title: trigger.label.replace('Rhythm — ', ''),
-          body: trigger.body,
-          schedule: { at, allowWhileIdle: true },
-          sound,
-          channelId,
-          extra: { planAlarmId: trigger.id },
-        }
-      })
-      .filter((n): n is NonNullable<typeof n> => n !== null)
+    const triggers = getBlockAlarmTriggers(dailyPlan, context.timeBlocks, forDate)
+    if (triggers.length > 0) {
+      const notifications = triggers
+        .map((trigger, index) => {
+          const at = minutesToLocalDate(trigger.startMinutes, forDate)
+          if (at.getTime() <= now) return null
+          return {
+            id: planNumericId(index),
+            title: trigger.label.replace('Rhythm — ', ''),
+            body: trigger.body,
+            schedule: { at, allowWhileIdle: true },
+            sound,
+            channelId,
+            extra: { planAlarmId: trigger.id },
+          }
+        })
+        .filter((n): n is NonNullable<typeof n> => n !== null)
 
-    if (notifications.length === 0) {
-      return { ok: true, message: 'No upcoming plan alerts left for today.' }
-    }
+      if (notifications.length === 0) {
+        return { ok: true, message: 'No upcoming block alerts left for today.' }
+      }
 
-    await LocalNotifications.schedule({ notifications })
-    return {
-      ok: true,
-      message: `Scheduled ${notifications.length} plan alerts (5 min before + start) for today.`,
+      await LocalNotifications.schedule({ notifications })
+      return {
+        ok: true,
+        message: `Scheduled ${notifications.length} block alerts (5 min before + start) for today.`,
+      }
     }
   }
 

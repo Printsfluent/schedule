@@ -34,6 +34,7 @@ export const DEFAULT_WEEKDAY_BLOCKS: Omit<TimeBlock, 'id'>[] = [
   { startMinutes: 20 * 60, durationMinutes: 120, label: 'Fun / social time', category: 'social', recurring: 'weekday', enabled: true },
   { startMinutes: 22 * 60, durationMinutes: 60, label: 'Light coding / review', category: 'study', recurring: 'weekday', enabled: true },
   { startMinutes: 23 * 60, durationMinutes: 60, label: 'Wind down', category: 'rest', recurring: 'weekday', enabled: true },
+  { startMinutes: 23 * 60 + 30, durationMinutes: 90, label: 'Sleep', category: 'rest', recurring: 'weekday', enabled: true },
 ]
 
 export const DEFAULT_SATURDAY_BLOCKS: Omit<TimeBlock, 'id'>[] = [
@@ -41,6 +42,7 @@ export const DEFAULT_SATURDAY_BLOCKS: Omit<TimeBlock, 'id'>[] = [
   { startMinutes: 11 * 60, durationMinutes: 180, label: 'Project building', category: 'study', recurring: 'saturday', enabled: true },
   { startMinutes: 14 * 60, durationMinutes: 120, label: 'Laundry / cleaning', category: 'life', recurring: 'saturday', enabled: true },
   { startMinutes: 19 * 60, durationMinutes: 240, label: 'Social / night out', category: 'social', recurring: 'saturday', enabled: true },
+  { startMinutes: 23 * 60 + 30, durationMinutes: 90, label: 'Sleep', category: 'rest', recurring: 'saturday', enabled: true },
 ]
 
 export const DEFAULT_SUNDAY_BLOCKS: Omit<TimeBlock, 'id'>[] = [
@@ -49,6 +51,7 @@ export const DEFAULT_SUNDAY_BLOCKS: Omit<TimeBlock, 'id'>[] = [
   { startMinutes: 14 * 60, durationMinutes: 60, label: 'Weekly planning', category: 'life', recurring: 'sunday', enabled: true },
   { startMinutes: 16 * 60, durationMinutes: 60, label: 'Minimal work', category: 'work', recurring: 'sunday', enabled: true },
   { startMinutes: 21 * 60, durationMinutes: 60, label: 'Early wind down', category: 'rest', recurring: 'sunday', enabled: true },
+  { startMinutes: 22 * 60 + 30, durationMinutes: 90, label: 'Sleep', category: 'rest', recurring: 'sunday', enabled: true },
 ]
 
 export function createDefaultBlocks(): TimeBlock[] {

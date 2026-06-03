@@ -1,7 +1,8 @@
 import { parseDateKey } from './dates'
+import { getTimedScheduleItems } from './scheduleAlerts'
 import { minutesToLocalDate } from './deviceTime'
 import { isNativeApp, syncNativeScheduleReminders, type NativeSyncContext } from './nativeNotifications'
-import { getPlanAlarmTriggers } from './planAlarms'
+import { getBlockAlarmTriggers } from './scheduleAlerts'
 import { requestNotificationPermissionCompat } from './browserCompat'
 import type { AppSettings } from '../types'
 
@@ -13,11 +14,9 @@ export type DeviceAlarmSyncResult = {
 
 function buildScheduledAlarms(context: NativeSyncContext) {
   const dailyPlan = context.todayLog.dailyPlan ?? []
-  if (dailyPlan.length === 0) return []
-
   const forDate = parseDateKey(context.todayKey)
   const now = Date.now()
-  return getPlanAlarmTriggers(dailyPlan, context.timeBlocks, forDate)
+  return getBlockAlarmTriggers(dailyPlan, context.timeBlocks, forDate)
     .map((trigger) => ({
       id: trigger.id,
       at: minutesToLocalDate(trigger.startMinutes, forDate).getTime(),
@@ -95,14 +94,17 @@ export async function syncDeviceAlarms(
   context: NativeSyncContext | NativeSyncContext[],
 ): Promise<DeviceAlarmSyncResult> {
   const contexts = Array.isArray(context) ? context : [context]
-  const hasPlan = contexts.some((c) => (c.todayLog.dailyPlan ?? []).length > 0)
+  const hasSchedule = contexts.some((c) => {
+    const plan = c.todayLog.dailyPlan ?? []
+    return getTimedScheduleItems(plan, c.timeBlocks, parseDateKey(c.todayKey)).length > 0
+  })
 
-  if (!hasPlan) {
+  if (!hasSchedule) {
     if (isNativeApp()) {
       const result = await syncNativeScheduleReminders(settings, contexts[0])
       return { ...result, scheduled: 0 }
     }
-    return { ok: true, message: 'No daily plan to schedule.', scheduled: 0 }
+    return { ok: true, message: 'No schedule blocks to link today.', scheduled: 0 }
   }
 
   if (isNativeApp()) {

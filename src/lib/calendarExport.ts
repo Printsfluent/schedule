@@ -1,6 +1,6 @@
 import { downloadBlob } from './browserCompat'
-import { planTimedItemsForCalendar } from './dailyPlan'
-import { formatDateKey, formatDuration } from './dates'
+import { getTimedScheduleItems } from './scheduleAlerts'
+import { formatDateKey, formatDuration, getBlocksForDate } from './dates'
 import { getDeviceTimezone } from './deviceTime'
 import { PLAN_ALERT_MINUTES_BEFORE } from './planAlarms'
 import { getDailyRemindersForDate } from './wakeFlow'
@@ -102,24 +102,27 @@ function buildDailyCalendarEvents(
   const dateKey = formatDateKey(forDate)
   const candidates: CalendarExportEvent[] = []
 
-  for (const item of planTimedItemsForCalendar(dailyPlan, timeBlocks, forDate)) {
+  for (const item of getTimedScheduleItems(dailyPlan, timeBlocks, forDate)) {
     const start = new Date(forDate)
     start.setHours(Math.floor(item.startMinutes / 60), item.startMinutes % 60, 0, 0)
+    const isPlan = Boolean(item.planItemId)
     candidates.push({
-      slotKey: `plan:${item.id}`,
+      slotKey: `${isPlan ? 'plan' : 'block'}:${item.id}`,
       startMinutes: item.startMinutes,
       start,
       durationMin: Math.max(1, item.durationMinutes),
       summary: `Rhythm — ${item.label}`,
-      description: `In your plan for ${dateKey} · ${formatDuration(item.durationMinutes)}.`,
-      uid: `daily-${dateKey}-plan-${item.id}`,
+      description: isPlan
+        ? `In your plan for ${dateKey} · ${formatDuration(item.durationMinutes)}.`
+        : `Schedule block for ${dateKey} · ${formatDuration(item.durationMinutes)}.`,
+      uid: `daily-${dateKey}-${isPlan ? 'plan' : 'block'}-${item.id}`,
       alarm: notificationSettings.alarmStyle !== 'off',
       priority: CALENDAR_EVENT_PRIORITY.plan,
       source: 'plan',
     })
   }
 
-  if (dailyPlan.length === 0) {
+  if (dailyPlan.length === 0 && getBlocksForDate(timeBlocks, forDate).length === 0) {
     for (const reminder of getDailyRemindersForDate(forDate, notificationSettings.reminderIds)) {
       const startMinutes = reminder.hour * 60 + reminder.minute
       const start = new Date(forDate)

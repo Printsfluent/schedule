@@ -84,7 +84,7 @@ export function MorningCalendarOverlay({
               ? 'Your first block is starting — add today to Calendar & Alarms if you skipped last night.'
               : dailyPlan.length > 0
                 ? `${upcomingDeviceAlarms} alarm${upcomingDeviceAlarms === 1 ? '' : 's'} · calendar alerts at start and 5 min before.`
-                : `Adds ${eventCount} event${eventCount === 1 ? '' : 's'} for tomorrow (start + 5 min before).`}
+                : `Adds ${eventCount} block${eventCount === 1 ? '' : 's'} for tomorrow (start + 5 min before).`}
           </p>
         </div>
 
