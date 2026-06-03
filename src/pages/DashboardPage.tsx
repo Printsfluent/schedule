@@ -98,12 +98,7 @@ export function DashboardPage() {
   const openTasks = state.tasks.filter((t) => !t.done)
   const activeTask = openTasks[0]
 
-  const progress = computeDayProgress(
-    todayLog,
-    todayBlocks.map((b) => b.id),
-    openTasks.map((t) => t.id),
-    state.habits.map((h) => h.id),
-  )
+  const progress = computeDayProgress(todayLog, state.timeBlocks, now)
 
   const stats = computeConsistencyStats(
     state.days,

@@ -1,5 +1,6 @@
-import type { ConsistencyStats, DayLog, Mood } from '../types'
-import { formatDateKey, getRecentDateKeys, parseDateKey } from './dates'
+import type { ConsistencyStats, DayLog, Mood, TimeBlock } from '../types'
+import { buildPlanDisplayEntries, getDailyPlan } from './dailyPlan'
+import { formatDateKey, getBlocksForDate, getRecentDateKeys, parseDateKey } from './dates'
 
 const GRACE_DAYS_PER_WEEK = 2
 
@@ -144,21 +145,31 @@ export function computeConsistencyStats(
   }
 }
 
+/** Progress for today’s schedule blocks (and custom plan items when a daily plan exists). */
 export function computeDayProgress(
   log: DayLog | undefined,
-  blockIds: string[],
-  taskIds: string[],
-  habitIds: string[],
+  timeBlocks: TimeBlock[],
+  forDate: Date,
 ): number {
   if (!log) return 0
   if (log.isRecoveryDay) return 100
-  const total = blockIds.length + taskIds.length + habitIds.length
-  if (!total) return 0
-  const done =
-    log.completedBlockIds.filter((id) => blockIds.includes(id)).length +
-    log.completedTaskIds.filter((id) => taskIds.includes(id)).length +
-    log.completedHabitIds.filter((id) => habitIds.includes(id)).length
-  return Math.round((done / total) * 100)
+
+  const dayBlocks = getBlocksForDate(timeBlocks, forDate)
+  const plan = getDailyPlan(log)
+
+  if (plan.length > 0) {
+    const entries = buildPlanDisplayEntries(log, dayBlocks)
+    if (entries.length === 0) return 0
+    if (entries.every((entry) => entry.done)) return 100
+    const done = entries.filter((entry) => entry.done).length
+    return Math.round((done / entries.length) * 100)
+  }
+
+  if (!dayBlocks.length) return 0
+  const completed = new Set(log.completedBlockIds)
+  const done = dayBlocks.filter((block) => completed.has(block.id)).length
+  if (done >= dayBlocks.length) return 100
+  return Math.round((done / dayBlocks.length) * 100)
 }
 
 export function moodToScore(mood: Mood | null): number | null {

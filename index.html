@@ -91,7 +91,12 @@
           var hasSession = false;
           for (var i = 0; i < localStorage.length; i++) {
             var k = localStorage.key(i);
-            if (k && k.indexOf('firebase:authUser') !== -1) {
+            if (!k) continue;
+            if (k.indexOf('firebase:authUser') !== -1 || k.indexOf('firebaseLocalStorage') !== -1) {
+              hasSession = true;
+              break;
+            }
+            if (k.indexOf('firebase:') === 0 && k.toLowerCase().indexOf('auth') !== -1) {
               hasSession = true;
               break;
             }
@@ -114,7 +119,9 @@
           try {
             for (var i = 0; i < localStorage.length; i++) {
               var k = localStorage.key(i);
-              if (k && k.indexOf('firebase:authUser') !== -1) return true;
+              if (!k) continue;
+              if (k.indexOf('firebase:authUser') !== -1 || k.indexOf('firebaseLocalStorage') !== -1) return true;
+              if (k.indexOf('firebase:') === 0 && k.toLowerCase().indexOf('auth') !== -1) return true;
             }
           } catch (e) {}
           return false;
@@ -139,13 +146,10 @@
           }
         }
         guardLogin();
-        window.addEventListener('pageshow', guardLogin);
-        document.addEventListener('visibilitychange', function () {
-          if (document.visibilityState === 'visible') guardLogin();
-        });
         setTimeout(function () {
           if (window.__RHYTHM_AUTH_REV__ !== bundleRev && !isLoginPage()) {
-            goLogin();
+            if (!hasFirebaseSession()) goLogin();
+            else location.reload();
           }
         }, 3000);
       })();

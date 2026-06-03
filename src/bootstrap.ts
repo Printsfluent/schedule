@@ -5,7 +5,7 @@ import {
   redirectToMandatoryLogin,
 } from './lib/auth/mandatoryLoginEpoch'
 import { hasStoredFirebaseSession } from './lib/auth/hasFirebaseSession'
-import { getFirebaseAuth } from './lib/firebase'
+import { getFirebaseAuth, waitForAuthPersistence } from './lib/firebase'
 import { bootstrapBrowserCompat } from './lib/browserCompat'
 import { bootstrapTheme } from './lib/theme'
 import { deleteAllCaches, unregisterAllServiceWorkers } from './lib/unregisterServiceWorkers'
@@ -24,7 +24,8 @@ export async function bootstrapApp(): Promise<void> {
       return
     }
 
-    if (!hasStoredFirebaseSession()) {
+    if (auth) await waitForAuthPersistence()
+    if (!auth?.currentUser && !hasStoredFirebaseSession()) {
       await unregisterAllServiceWorkers()
       await deleteAllCaches()
       if (redirectToLoginIfGuest()) return

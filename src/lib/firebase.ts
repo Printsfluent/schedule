@@ -1,8 +1,10 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { browserLocalPersistence, getAuth, setPersistence, type Auth } from 'firebase/auth'
+import { getFirestore, type Firestore } from 'firebase/firestore'
 
 let app: FirebaseApp | null = null
 let auth: Auth | null = null
+let db: Firestore | null = null
 let persistenceReady: Promise<void> | null = null
 
 export function isFirebaseConfigured(): boolean {
@@ -35,4 +37,13 @@ export async function waitForAuthPersistence(): Promise<void> {
   if (!instance) return
   if (persistenceReady) await persistenceReady
   await instance.authStateReady()
+}
+
+export function getFirestoreDb(): Firestore | null {
+  if (!isFirebaseConfigured()) return null
+  if (!db) {
+    getFirebaseAuth()
+    db = getFirestore(app!)
+  }
+  return db
 }

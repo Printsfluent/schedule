@@ -37,6 +37,11 @@ export function getDeviceStorageKey(base: string = STORAGE_BASE): string {
   return `${base}-${hashString(deviceFingerprint())}`
 }
 
+/** Per-account local cache (used with Firestore cloud sync). */
+export function getUserStorageKey(userId: string, base: string = STORAGE_BASE): string {
+  return `${base}-user-${userId}`
+}
+
 export function clearDeviceStorage() {
   clearRhythmStorage()
 }

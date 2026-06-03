@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { AuthLoading } from './components/AuthLoading'
 import { useAuth } from './context/AuthContext'
+import { SyncProvider } from './context/SyncContext'
 import AuthenticatedApp from './AuthenticatedApp'
 import { LoginPage } from './pages/LoginPage'
 
@@ -23,5 +24,9 @@ export default function App() {
     return <Navigate to={loginTarget} replace />
   }
 
-  return <AuthenticatedApp />
+  return (
+    <SyncProvider>
+      <AuthenticatedApp />
+    </SyncProvider>
+  )
 }

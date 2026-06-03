@@ -29,7 +29,7 @@ import {
 } from '../lib/auth/resolveAuthIdentifier'
 import { isValidUsername } from '../lib/auth/validation'
 import { emailVerificationContinueUrl } from '../lib/auth/verificationUrl'
-import { loginPath, redirectToLoginIfGuest } from '../lib/auth/forceLoginGate'
+import { loginPath } from '../lib/auth/forceLoginGate'
 import { getFirebaseAuth, isFirebaseConfigured, waitForAuthPersistence } from '../lib/firebase'
 import { registerProductionPwa, resetPwaRegistration } from '../lib/registerPwa'
 import { deleteAllCaches, unregisterAllServiceWorkers } from '../lib/unregisterServiceWorkers'
@@ -108,20 +108,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false
 
     void (async () => {
-      if (await applyMandatoryLoginEpoch(auth)) {
-        setUser(null)
-        setLoading(false)
-        return
+      try {
+        if (await applyMandatoryLoginEpoch(auth)) {
+          if (!cancelled) {
+            setUser(null)
+            setLoading(false)
+          }
+          return
+        }
+        await applyAuthSessionResetIfNeeded(auth)
+        await waitForAuthPersistence()
+        if (!cancelled) {
+          applyFirebaseUser(auth.currentUser)
+          setLoading(false)
+        }
+      } catch {
+        if (!cancelled) setLoading(false)
       }
-      await applyAuthSessionResetIfNeeded(auth)
-      await waitForAuthPersistence()
     })()
 
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-      if (!cancelled) {
-        applyFirebaseUser(fbUser)
-        setLoading(false)
-      }
+      if (!cancelled) applyFirebaseUser(fbUser)
     })
 
     return () => {
@@ -136,35 +143,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
-      void (async () => {
-        const auth = getFirebaseAuth()
-        if (!auth) return
-        await waitForAuthPersistence()
-        if (!auth.currentUser) {
-          setUser(null)
-          redirectToLoginIfGuest()
-          return
-        }
-        if (event.persisted) {
-          await auth.currentUser.reload()
-          applyFirebaseUser(auth.currentUser)
-        }
-      })()
-    }
-    const onVisible = () => {
-      if (document.visibilityState !== 'visible' || user) return
-      void waitForAuthPersistence().then(() => {
-        const auth = getFirebaseAuth()
-        if (!auth?.currentUser) redirectToLoginIfGuest()
-      })
+      if (!event.persisted) return
+      const auth = getFirebaseAuth()
+      const fbUser = auth?.currentUser
+      if (!fbUser) return
+      void fbUser.reload().then(() => applyFirebaseUser(auth!.currentUser))
     }
     window.addEventListener('pageshow', onPageShow)
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      window.removeEventListener('pageshow', onPageShow)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-  }, [applyFirebaseUser, user])
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [applyFirebaseUser])
 
   const signIn = useCallback(async (identifier: string, password: string): Promise<SignInResult> => {
     const auth = getFirebaseAuth()

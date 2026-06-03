@@ -1,4 +1,4 @@
-import { buildPlanDisplayEntries, getDailyPlan, type PlanDisplayEntry } from './dailyPlan'
+import { buildPlanDisplayEntries, getDailyPlan, isDayFullyComplete, type PlanDisplayEntry } from './dailyPlan'
 import type { DayLog, TimeBlock } from '../types'
 
 export function getLastPlanEventEndMinutes(entries: PlanDisplayEntry[]): number | null {
@@ -33,5 +33,6 @@ export function shouldOfferEveningPlan(
 ): boolean {
   if (log?.eveningPlanPrompt === 'declined' || log?.eveningPlanPrompt === 'planned') return false
   if (blocks.length === 0 && getDailyPlan(log).length === 0) return false
+  if (isDayFullyComplete(log, blocks, now)) return true
   return hasTodayPlanEnded(log, blocks, now)
 }

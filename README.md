@@ -137,7 +137,7 @@ npm run cap:ios      # or cap:android
 
 - React 19 + TypeScript + Vite
 - Tailwind CSS 4
-- Firebase Auth
+- Firebase Auth + Firestore (per-user cloud sync)
 - PWA (Vite PWA plugin)
 - Capacitor (optional iOS/Android)
 - Deploy: Vercel and/or GitHub Pages
@@ -156,6 +156,14 @@ npm run cap:ios      # or cap:android
 ## Staying signed in
 
 After a user signs in, Firebase keeps them logged in on that device until they tap **Sign out** (**Insights → Settings → Account**).
+
+## Sync across devices
+
+When you sign in with the same account on multiple devices, Rhythm syncs your schedule, habits, tasks, and settings through **Firestore**. Changes on one device appear on the others within a few seconds (while online).
+
+First-time setup: enable Firestore and deploy security rules — see [firebase/SETUP.md](firebase/SETUP.md) §7.
+
+Local data from before you signed in is copied into your account on first login on that device. **Reset app data** clears this device and updates your cloud copy for all devices.
 
 ## Forcing every device to log in again
 

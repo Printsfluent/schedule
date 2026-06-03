@@ -4,9 +4,9 @@ export function hasStoredFirebaseSession(): boolean {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
-      if (key && (key.includes('firebase:authUser') || key.includes('firebaseLocalStorageDb'))) {
-        return true
-      }
+      if (!key) continue
+      if (key.includes('firebase:authUser') || key.includes('firebaseLocalStorage')) return true
+      if (key.startsWith('firebase:') && key.toLowerCase().includes('auth')) return true
     }
   } catch {
     /* Safari private mode / ITP */

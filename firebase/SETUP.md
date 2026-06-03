@@ -74,3 +74,18 @@ npm run deploy
 **GitHub Pages:** Repository → Settings → Secrets — add the same keys for the deploy workflow.
 
 Restart dev server after changing `.env`: `npm run dev`
+
+## 7. Cloud sync (Firestore)
+
+Rhythm stores each user’s schedule, habits, and settings in **Cloud Firestore** so the same account stays in sync on phone, laptop, and tablet.
+
+1. In Firebase Console, open **Build** → **Firestore Database**
+2. Click **Create database** → **Start in production mode** (you will paste rules next)
+3. Choose a region close to your users
+4. Open the **Rules** tab and paste the contents of `firebase/firestore.rules` from this repo, then **Publish**
+
+Path used by the app: `users/{userId}/appdata/state` — only that signed-in user can read or write their document.
+
+**Billing:** Personal schedule JSON is small; the free Spark tier is usually enough. Watch usage in **Firestore** → **Usage** if traffic grows.
+
+No extra `VITE_*` variables are required; sync uses the same Firebase project as Auth.

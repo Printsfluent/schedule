@@ -20,11 +20,13 @@ import { emptyDayLog, formatDateKey, getBlocksForDate, parseDateKey } from '../l
 import { applyAutoHabitsToLog } from '../lib/habitTracking'
 import { addXp, defaultGamification, xpForCategory } from '../lib/gamification'
 import { safeStorage } from '../lib/browserCompat'
-import { getDeviceStorageKey, STORAGE_BASE } from '../lib/deviceStorage'
+import { getDeviceStorageKey, getUserStorageKey, STORAGE_BASE } from '../lib/deviceStorage'
 import { clampDurationSeconds } from '../lib/duration'
 import { createId } from '../lib/id'
 
-const STORAGE_KEY = getDeviceStorageKey(STORAGE_BASE)
+let storageKey = getDeviceStorageKey(STORAGE_BASE)
+let skipCloudPush = false
+let cloudPushHandler: ((s: AppState) => void) | null = null
 
 function defaultFocusTimers(): FocusTimers {
   return {
@@ -209,12 +211,12 @@ function migrate(raw: Partial<AppState>): AppState {
   }
 }
 
-function load(): AppState {
+function load(key: string = storageKey): AppState {
   if (typeof window === 'undefined') {
     return defaultState()
   }
   try {
-    const raw = safeStorage.getItem(STORAGE_KEY)
+    const raw = safeStorage.getItem(key)
     if (raw) return migrate(JSON.parse(raw) as Partial<AppState>)
     const legacy = safeStorage.getItem('schedule-app-state')
     if (legacy) return migrate(JSON.parse(legacy) as Partial<AppState>)
@@ -222,6 +224,46 @@ function load(): AppState {
     /* ignore corrupt storage */
   }
   return defaultState()
+}
+
+export function setCloudPushHandler(handler: ((s: AppState) => void) | null): void {
+  cloudPushHandler = handler
+}
+
+/** Switch local cache to the signed-in user (call before cloud sync). */
+export function setStorageUserId(userId: string | null): void {
+  if (userId) {
+    const userKey = getUserStorageKey(userId)
+    const deviceKey = getDeviceStorageKey(STORAGE_BASE)
+    if (!safeStorage.getItem(userKey) && safeStorage.getItem(deviceKey)) {
+      try {
+        safeStorage.setItem(userKey, safeStorage.getItem(deviceKey)!)
+      } catch {
+        /* quota */
+      }
+    }
+    storageKey = userKey
+  } else {
+    storageKey = getDeviceStorageKey(STORAGE_BASE)
+  }
+  state = load(storageKey)
+  listeners.forEach((l) => l())
+}
+
+export function getAppState(): AppState {
+  return state
+}
+
+export function replaceAppState(next: AppState): void {
+  state = migrate(next)
+  skipCloudPush = true
+  try {
+    safeStorage.setItem(storageKey, JSON.stringify(state))
+  } catch {
+    /* quota */
+  }
+  skipCloudPush = false
+  listeners.forEach((l) => l())
 }
 
 /** Replace in-memory state and storage with factory defaults (empty logs, zero streaks). */
@@ -234,20 +276,23 @@ export function persistFactoryDefaults() {
   }
   try {
     safeStorage.removeItem('schedule-app-state')
-    safeStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    safeStorage.setItem(storageKey, JSON.stringify(state))
   } catch {
     /* quota exceeded etc */
   }
 }
 
-let state = load()
+let state = load(storageKey)
 const listeners = new Set<() => void>()
 
 function emit() {
   try {
-    safeStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    safeStorage.setItem(storageKey, JSON.stringify(state))
   } catch {
     /* quota exceeded etc */
+  }
+  if (!skipCloudPush && cloudPushHandler) {
+    cloudPushHandler(state)
   }
   listeners.forEach((l) => l())
 }

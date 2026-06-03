@@ -13,7 +13,10 @@ export function AccountPanel() {
 
   return (
     <Card glow="#6ea8fe">
-      <SectionTitle title="Account" subtitle="Signed in with Firebase" />
+      <SectionTitle
+        title="Account"
+        subtitle="Your schedule syncs across devices when signed in"
+      />
       {user ? (
         <div className="mb-3 rounded-2xl bg-inset px-4 py-3">
           <div className="text-sm font-semibold">@{user.username}</div>
