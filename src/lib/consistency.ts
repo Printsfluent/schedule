@@ -82,31 +82,37 @@ export function computeGentleStreak(
   totalBlocks: number,
   habitCount: number,
   from: Date = new Date(),
+  countFromKey: string | null = null,
 ): number {
-  if (Object.keys(days).length === 0) return 0
-
   let streak = 0
   let grace = GRACE_DAYS_PER_WEEK
   const cursor = new Date(from)
   cursor.setHours(12, 0, 0, 0)
 
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 365; i++) {
     const key = formatDateKey(cursor)
+
+    if (countFromKey && key < countFromKey) break
+
     const log = days[key]
 
-    if (!log) break
+    if (!log) {
+      cursor.setDate(cursor.getDate() - 1)
+      continue
+    }
 
     const counts = dayCounts(log, totalBlocks, habitCount)
     const partial = dayPartialCredit(log)
+    const wins = counts || partial >= 0.5
 
     if (i > 0 && cursor.getDay() === 1) grace = GRACE_DAYS_PER_WEEK
 
-    if (counts || partial >= 0.5) {
+    if (wins) {
       streak++
-    } else if (grace > 0 && i > 0) {
+    } else if (i === 0) {
+      // Today still in progress — keep yesterday's streak visible.
+    } else if (grace > 0) {
       grace--
-      streak++
-    } else if (i === 0 && partial >= 0.25) {
       streak++
     } else {
       break
@@ -122,6 +128,7 @@ export function computeConsistencyStats(
   totalBlocks: number,
   habitCount: number,
   todayKey: string,
+  gentleStreakSince: string | null = null,
 ): ConsistencyStats {
   const today = parseDateKey(todayKey)
   const log = days[todayKey]
@@ -137,7 +144,7 @@ export function computeConsistencyStats(
     score7: scoreWindow(days, 7, totalBlocks, habitCount, today),
     score14: scoreWindow(days, 14, totalBlocks, habitCount, today),
     score30: scoreWindow(days, 30, totalBlocks, habitCount, today),
-    gentleStreak: computeGentleStreak(days, totalBlocks, habitCount, today),
+    gentleStreak: computeGentleStreak(days, totalBlocks, habitCount, today, gentleStreakSince),
     graceDaysUsed: 0,
     graceDaysAvailable: GRACE_DAYS_PER_WEEK,
     todayCounts,

@@ -103,6 +103,7 @@ export function DashboardPage() {
     todayBlocks.length,
     state.habits.length,
     todayKey,
+    state.settings.gentleStreakSince,
   )
 
   const hasOutage = todayLog.powerOutage || todayLog.internetOutage

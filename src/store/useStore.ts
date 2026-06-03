@@ -73,6 +73,7 @@ function defaultSettings(): AppSettings {
     scheduleMode: 'weekday',
     adaptiveScheduling: true,
     persistentReminders: true,
+    gentleStreakSince: null,
   }
 }
 
@@ -203,6 +204,10 @@ function migrate(raw: Partial<AppState>): AppState {
         scheduleMode: raw.settings?.scheduleMode ?? 'weekday',
         adaptiveScheduling: raw.settings?.adaptiveScheduling ?? true,
         persistentReminders: raw.settings?.persistentReminders ?? true,
+        gentleStreakSince:
+          typeof raw.settings?.gentleStreakSince === 'string'
+            ? raw.settings.gentleStreakSince
+            : null,
       },
       gamification: {
         ...defaultGamification(),

@@ -17,7 +17,13 @@ export function HabitsPage() {
   const now = new Date()
 
   const todayBlocks = useMemo(() => getBlocksForDate(state.timeBlocks, now), [state.timeBlocks])
-  const stats = computeConsistencyStats(state.days, todayBlocks.length, state.habits.length, todayKey)
+  const stats = computeConsistencyStats(
+    state.days,
+    todayBlocks.length,
+    state.habits.length,
+    todayKey,
+    state.settings.gentleStreakSince,
+  )
   const recentKeys = getRecentDateKeys(14, now)
 
   const blocksForKey = (key: string) =>

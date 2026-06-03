@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { AlarmSyncPanel } from '../components/AlarmSyncPanel'
 import { ResetAppDataPanel } from '../components/ResetAppDataPanel'
+import { GentleStreakPanel, gentleStreakResetPatch } from '../components/GentleStreakPanel'
 import { RoutineSettingsPanel } from '../components/RoutineSettingsPanel'
 import { AppAboutSummary } from '../components/AppAboutSummary'
 import { AccountPanel } from '../components/AccountPanel'
@@ -42,7 +43,13 @@ export function InsightsPage({ testScheduledAt = null }: InsightsPageProps) {
   const todayBlocks = useMemo(() => getBlocksForDate(state.timeBlocks, now), [state.timeBlocks])
   const weekStats = computeWeekStats(state.days, state.timeBlocks, now)
   const monthStats = computeMonthStats(state.days, state.timeBlocks, calMonth.getFullYear(), calMonth.getMonth())
-  const consistency = computeConsistencyStats(state.days, todayBlocks.length, state.habits.length, todayKey)
+  const consistency = computeConsistencyStats(
+    state.days,
+    todayBlocks.length,
+    state.habits.length,
+    todayKey,
+    state.settings.gentleStreakSince,
+  )
   const gamification = state.gamification ?? { xp: 0, totalXp: 0, level: 1 }
   const xpInfo = levelFromXp(gamification.totalXp)
   const pet = petStage(consistency.gentleStreak)
@@ -309,6 +316,13 @@ export function InsightsPage({ testScheduledAt = null }: InsightsPageProps) {
         {tab === 'settings' && (
           <>
             <AppAboutSummary />
+
+            <GentleStreakPanel
+              state={state}
+              todayKey={todayKey}
+              totalBlocks={todayBlocks.length}
+              onReset={() => updateSettings(gentleStreakResetPatch(todayKey))}
+            />
 
             <RoutineSettingsPanel settings={state.settings} onChange={updateSettings} />
 

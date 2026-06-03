@@ -139,6 +139,8 @@ export interface AppSettings {
   scheduleMode: ScheduleMode
   adaptiveScheduling: boolean
   persistentReminders: boolean
+  /** Inclusive date (YYYY-MM-DD); gentle streak only counts this day onward. Null = all history. */
+  gentleStreakSince: string | null
 }
 
 export interface AppState {
