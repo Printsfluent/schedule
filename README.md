@@ -169,7 +169,7 @@ Local data from before you signed in is copied into your account on first login 
 
 Bump `AUTH_LOGIN_REQUIRED_EPOCH` in `src/lib/auth/gateVersion.ts` (same number as `AUTH_GATE_GENERATION`), commit, and deploy. On the next visit each device:
 
-1. Clears saved Firebase / Supabase auth tokens  
+1. Clears saved Firebase auth tokens  
 2. Purges stale PWA caches  
 3. Redirects to `/login`  
 

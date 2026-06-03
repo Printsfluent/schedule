@@ -116,7 +116,7 @@ export default defineConfig({
           console.log('\n  📱 iPhone / Android on same Wi‑Fi:')
           if (ip) {
             console.log(`     ${proto}://${ip}:${port}/`)
-            console.log(`     Test first: ${proto}://${ip}:${port}/connect-test.html`)
+            console.log(`     Open on phone: ${proto}://${ip}:${port}/`)
           } else {
             console.log(`     Use the Network URL shown above (192.168.x.x)`)
           }

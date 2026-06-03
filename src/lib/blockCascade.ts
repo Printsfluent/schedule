@@ -13,14 +13,14 @@ export function getRawBlocksForDate(blocks: TimeBlock[], date: Date): TimeBlock[
   return sortDayBlocks(blocks.filter((b) => blockAppliesToday(b, date)))
 }
 
-/** Wake time from the previous calendar night's sleep block. */
+/** Wake time from the previous calendar night's sleep block (one-day cascade only). */
 export function getPriorDaySleepWakeMinutes(
   allBlocks: TimeBlock[],
   date: Date,
 ): number | null {
   const prev = new Date(date)
   prev.setDate(prev.getDate() - 1)
-  const prevDay = cascadeBlocksForDate(allBlocks, prev)
+  const prevDay = cascadeBlocksForDate(allBlocks, prev, null)
   const sleep = [...prevDay].reverse().find(isSleepBlock)
   if (!sleep) return null
   return sleepEndMinutes(sleep.startMinutes, sleep.durationMinutes)
@@ -29,16 +29,22 @@ export function getPriorDaySleepWakeMinutes(
 /**
  * Chain blocks so each starts when the previous ends.
  * First block starts at prior night's sleep end when available.
+ * @param wakeAnchor Pass `null` to skip prior-night lookup (used internally for yesterday only).
  */
-export function cascadeBlocksForDate(allBlocks: TimeBlock[], date: Date): TimeBlock[] {
+export function cascadeBlocksForDate(
+  allBlocks: TimeBlock[],
+  date: Date,
+  wakeAnchor?: number | null,
+): TimeBlock[] {
   const ordered = getRawBlocksForDate(allBlocks, date)
   if (ordered.length === 0) return []
 
-  const wakeAnchor = getPriorDaySleepWakeMinutes(allBlocks, date)
+  const wake =
+    wakeAnchor === undefined ? getPriorDaySleepWakeMinutes(allBlocks, date) : wakeAnchor
   const out = ordered.map((block) => ({ ...block }))
 
-  if (wakeAnchor != null) {
-    out[0].startMinutes = clampDayMinutes(Math.max(wakeAnchor, ordered[0].startMinutes))
+  if (wake != null) {
+    out[0].startMinutes = clampDayMinutes(Math.max(wake, ordered[0].startMinutes))
   }
 
   for (let i = 1; i < out.length; i++) {
