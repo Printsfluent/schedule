@@ -15,7 +15,7 @@ export function AccountPanel() {
     <Card glow="#6ea8fe">
       <SectionTitle
         title="Account"
-        subtitle="Your schedule syncs across devices when signed in"
+        subtitle="Schedule, mood, and home messages sync across devices when signed in"
       />
       {user ? (
         <div className="mb-3 rounded-2xl bg-inset px-4 py-3">

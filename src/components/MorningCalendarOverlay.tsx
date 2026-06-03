@@ -15,7 +15,9 @@ interface Props {
   timeBlocks: TimeBlock[]
   notificationSettings: AppSettings['notifications']
   dailyPlan: DayPlanItem[]
-  onDone: () => void
+  /** Evening flow plans tomorrow; morning reminds after a skipped export. */
+  variant?: 'tomorrow' | 'today'
+  onComplete: (result: 'exported' | 'skipped') => void
 }
 
 export function MorningCalendarOverlay({
@@ -25,7 +27,8 @@ export function MorningCalendarOverlay({
   timeBlocks,
   notificationSettings,
   dailyPlan,
-  onDone,
+  variant = 'tomorrow',
+  onComplete,
 }: Props) {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
@@ -63,7 +66,7 @@ export function MorningCalendarOverlay({
     )
     setStatus(formatPlanExportStatus(result))
     setBusy(false)
-    onDone()
+    onComplete('exported')
   }
 
   return (
@@ -72,12 +75,16 @@ export function MorningCalendarOverlay({
         <div className="text-center">
           <div className="text-5xl">📅</div>
           <p className="mt-4 text-sm font-medium text-accent">Calendar & alarms</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">Tomorrow only</h1>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight">
+            {variant === 'today' ? "Today's plan" : 'Tomorrow only'}
+          </h1>
           <p className="mt-2 text-sm text-subtle">{formatDisplayDate(forDate)}</p>
           <p className="mt-2 text-xs leading-relaxed text-subtle">
-            {dailyPlan.length > 0
-              ? `${upcomingDeviceAlarms} alarm${upcomingDeviceAlarms === 1 ? '' : 's'} · calendar alerts at start and 5 min before.`
-              : `Adds ${eventCount} event${eventCount === 1 ? '' : 's'} for tomorrow (start + 5 min before).`}
+            {variant === 'today'
+              ? 'Your first block is starting — add today to Calendar & Alarms if you skipped last night.'
+              : dailyPlan.length > 0
+                ? `${upcomingDeviceAlarms} alarm${upcomingDeviceAlarms === 1 ? '' : 's'} · calendar alerts at start and 5 min before.`
+                : `Adds ${eventCount} event${eventCount === 1 ? '' : 's'} for tomorrow (start + 5 min before).`}
           </p>
         </div>
 
@@ -119,7 +126,11 @@ export function MorningCalendarOverlay({
           >
             {busy ? 'Exporting…' : 'Add to Calendar & Alarms'}
           </button>
-          <button type="button" onClick={onDone} className="w-full py-3 text-sm text-faint">
+          <button
+            type="button"
+            onClick={() => onComplete('skipped')}
+            className="w-full py-3 text-sm text-faint"
+          >
             Skip for now
           </button>
         </div>

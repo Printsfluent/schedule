@@ -8,7 +8,7 @@ import {
   setStorageUserId,
 } from '../../store/useStore'
 
-const SCHEMA_VERSION = 1
+const SCHEMA_VERSION = 2
 const DEBOUNCE_MS = 1500
 const REMOTE_IGNORE_MS = 4000
 

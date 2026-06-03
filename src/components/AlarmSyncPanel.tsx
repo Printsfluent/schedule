@@ -24,6 +24,7 @@ import { Card, SectionTitle } from './ui/Card'
 interface Props {
   state: AppState
   onUpdateSettings: (patch: Partial<AppSettings>) => void
+  onMarkCalendarExported?: () => void
   testScheduledAt: number | null
 }
 
@@ -40,7 +41,7 @@ function formatReminderTime(hour: number, minute: number): string {
   return formatDeviceTime(d)
 }
 
-export function AlarmSyncPanel({ state, onUpdateSettings, testScheduledAt }: Props) {
+export function AlarmSyncPanel({ state, onUpdateSettings, onMarkCalendarExported, testScheduledAt }: Props) {
   const notif = state.settings.notifications
   const permission = getNotificationPermission()
   const [nativeStatus, setNativeStatus] = useState<string | null>(null)
@@ -99,6 +100,7 @@ export function AlarmSyncPanel({ state, onUpdateSettings, testScheduledAt }: Pro
       { todayKey, todayLog, timeBlocks: state.timeBlocks },
     )
     setNativeStatus(formatPlanExportStatus(result))
+    onMarkCalendarExported?.()
   }
 
   const toggleReminder = (id: string) => {

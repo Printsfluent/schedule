@@ -72,6 +72,8 @@ export interface DayPlanItem {
 export interface DayLog {
   date: string
   mood: Mood | null
+  /** Which home encouragement / mood quote is showing (syncs across devices). */
+  homeMessageIndex?: number
   sleepHours: number | null
   wakeCompleted: boolean
   completedBlockIds: string[]
@@ -91,6 +93,10 @@ export interface DayLog {
   morningSleepFeedbackDone?: boolean
   morningFlowComplete?: boolean
   eveningPlanPrompt?: 'declined' | 'planned'
+  /** Calendar .ics was exported for this day. */
+  calendarExported?: boolean
+  /** User skipped export after planning — remind at first block start. */
+  calendarExportSkipped?: boolean
   wakeDelayMinutes?: number
   planSnoozes?: PlanSnooze[]
   weeklyReviewNote?: string

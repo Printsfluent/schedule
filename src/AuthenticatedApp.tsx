@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AlarmOverlay } from './components/AlarmOverlay'
 import { EndOfDayPlanPrompt } from './components/EndOfDayPlanPrompt'
@@ -8,7 +8,9 @@ import { SleepFeedbackOverlay } from './components/SleepFeedbackOverlay'
 import { WakeAlarmOverlay } from './components/WakeAlarmOverlay'
 import { TabBar, AppHeader } from './components/layout/Shell'
 import { AlarmActionsContext } from './context/AlarmActionsContext'
+import { useCalendarExportReminder } from './hooks/useCalendarExportReminder'
 import { useEndOfDayPlanPrompt } from './hooks/useEndOfDayPlanPrompt'
+import { calendarExportPatch } from './lib/calendarExportFlow'
 import { useAlarmScheduler } from './hooks/useAlarmScheduler'
 import { useDeviceAlarmSync } from './hooks/useDeviceAlarmSync'
 import { useNativeNotifications } from './hooks/useNativeNotifications'
@@ -113,6 +115,9 @@ export default function AuthenticatedApp() {
     () => getBlocksForDate(state.timeBlocks, parseDateKey(todayKey)),
     [state.timeBlocks, todayKey],
   )
+  const todayDate = useMemo(() => parseDateKey(todayKey), [todayKey])
+
+  const [morningCalendarPrompt, setMorningCalendarPrompt] = useState(false)
 
   const {
     showEveningPrompt,
@@ -128,7 +133,16 @@ export default function AuthenticatedApp() {
   })
 
   const eveningBlocking = eveningFlow !== null
-  const appBlocked = morningBlocking || eveningBlocking
+  const appBlocked = morningBlocking || eveningBlocking || morningCalendarPrompt
+
+  useCalendarExportReminder({
+    dateKey: todayKey,
+    dayLog: todayLog,
+    timeBlocks: state.timeBlocks,
+    notifications: state.settings.notifications,
+    blocked: appBlocked,
+    onPrompt: () => setMorningCalendarPrompt(true),
+  })
 
   return (
     <AlarmActionsContext.Provider
@@ -224,14 +238,32 @@ export default function AuthenticatedApp() {
 
         {eveningFlow === 'calendar' && (
           <MorningCalendarOverlay
+            variant="tomorrow"
             forDate={tomorrowDate}
             planDateKey={tomorrowKey}
             planLog={getLog(tomorrowKey)}
             timeBlocks={state.timeBlocks}
             notificationSettings={state.settings.notifications}
             dailyPlan={getLog(tomorrowKey).dailyPlan ?? []}
-            onDone={() => {
+            onComplete={(result) => {
+              updateDay(tomorrowKey, calendarExportPatch(result === 'exported'))
               finishEveningFlow()
+            }}
+          />
+        )}
+
+        {morningCalendarPrompt && eveningFlow !== 'calendar' && (
+          <MorningCalendarOverlay
+            variant="today"
+            forDate={todayDate}
+            planDateKey={todayKey}
+            planLog={todayLog}
+            timeBlocks={state.timeBlocks}
+            notificationSettings={state.settings.notifications}
+            dailyPlan={todayLog.dailyPlan ?? []}
+            onComplete={(result) => {
+              updateDay(todayKey, calendarExportPatch(result === 'exported'))
+              setMorningCalendarPrompt(false)
             }}
           />
         )}

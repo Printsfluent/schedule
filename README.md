@@ -159,7 +159,7 @@ After a user signs in, Firebase keeps them logged in on that device until they t
 
 ## Sync across devices
 
-When you sign in with the same account on multiple devices, Rhythm syncs your schedule, habits, tasks, and settings through **Firestore**. Changes on one device appear on the others within a few seconds (while online).
+When you sign in with the same account on multiple devices, Rhythm syncs your schedule, habits, tasks, mood, home encouragement messages, and settings through **Firestore**. Changes on one device appear on the others within a few seconds (while online).
 
 First-time setup: enable Firestore and deploy security rules — see [firebase/SETUP.md](firebase/SETUP.md) §7.
 

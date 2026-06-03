@@ -45,13 +45,11 @@ export function DashboardPage() {
     todayLog,
     toggleBlockComplete,
     toggleTaskToday,
-    setMood,
     addTask,
     updateDay,
     awardXp,
   } = useStore()
   const [taskInput, setTaskInput] = useState('')
-  const [messageIndex, setMessageIndex] = useState(0)
   const [clockTick, setClockTick] = useState(0)
   const [celebrate, setCelebrate] = useState<{ show: boolean; label?: string }>({ show: false })
   const now = new Date()
@@ -146,9 +144,22 @@ export function DashboardPage() {
     return MOTIVATION_QUOTES.length
   }, [hasOutage, todayLog.mood])
 
+  const messageIndex = todayLog.homeMessageIndex ?? 0
+
+  const persistMessageIndex = useCallback(
+    (index: number) => {
+      const normalized =
+        messagePoolSize > 0 ? ((index % messagePoolSize) + messagePoolSize) % messagePoolSize : 0
+      if (todayLog.homeMessageIndex === normalized) return
+      updateDay(todayKey, { homeMessageIndex: normalized })
+    },
+    [messagePoolSize, todayKey, todayLog.homeMessageIndex, updateDay],
+  )
+
   useEffect(() => {
-    setMessageIndex(randomMessageIndex(messagePoolSize))
-  }, [todayLog.mood, hasOutage, todayKey, messagePoolSize])
+    if (todayLog.homeMessageIndex != null || messagePoolSize === 0) return
+    updateDay(todayKey, { homeMessageIndex: randomMessageIndex(messagePoolSize) })
+  }, [messagePoolSize, todayKey, todayLog.homeMessageIndex, updateDay])
 
   useEffect(() => {
     const interval = setInterval(() => setClockTick((t) => t + 1), 30_000)
@@ -156,12 +167,14 @@ export function DashboardPage() {
   }, [])
 
   const handleMoodSelect = (mood: Mood) => {
-    setMood(todayKey, mood)
-    setMessageIndex(randomMessageIndex(messageCount(mood)))
+    updateDay(todayKey, {
+      mood,
+      homeMessageIndex: randomMessageIndex(messageCount(mood)),
+    })
   }
 
   const cycleMessage = () => {
-    setMessageIndex((i) => nextMessageIndex(i, messagePoolSize))
+    persistMessageIndex(nextMessageIndex(messageIndex, messagePoolSize))
   }
 
   const displayMessage = (() => {

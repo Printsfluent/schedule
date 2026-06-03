@@ -20,7 +20,7 @@ export function AppAboutSummary() {
         ))}
       </ul>
       <p className="mt-3 text-center text-[10px] leading-relaxed text-faint">
-        Sign in to save your account. Your schedule and habits stay on this device.
+        Sign in to sync your schedule, mood, habits, and settings across your devices.
       </p>
     </section>
   )

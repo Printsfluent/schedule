@@ -10,6 +10,7 @@ import { BarChart, LineChart, StatGrid } from '../components/charts/Charts'
 import { Card, SectionTitle } from '../components/ui/Card'
 import { PageHeader } from '../components/layout/Shell'
 import { computeMonthStats, computeWeekStats } from '../lib/analytics'
+import { calendarExportPatch } from '../lib/calendarExportFlow'
 import { burnoutWarning, scheduledMinutesForDay } from '../lib/burnout'
 import { compareIdealVsActual } from '../lib/idealVsActual'
 import { formatEventStat } from '../lib/homeAnalytics'
@@ -316,6 +317,7 @@ export function InsightsPage({ testScheduledAt = null }: InsightsPageProps) {
             <AlarmSyncPanel
               state={state}
               onUpdateSettings={updateSettings}
+              onMarkCalendarExported={() => updateDay(todayKey, calendarExportPatch(true))}
               testScheduledAt={testScheduledAt}
             />
 
