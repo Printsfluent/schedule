@@ -3,19 +3,21 @@ import {
   SLEEP_BLOCK_SUNDAY,
   SLEEP_BLOCK_WEEKDAY,
 } from '../data/defaults'
-import { appendChainedPlanItem, createBlockPlanItem, getDailyPlan } from './dailyPlan'
+import {
+  appendChainedPlanItem,
+  createBlockPlanItem,
+  getDailyPlan,
+  refreshBlockTimesInPlan,
+} from './dailyPlan'
 import { formatDateKey, getBlocksForDate } from './dates'
 import { createId } from './id'
+import { alignAllSchedulesToSleep, isSleepBlock } from './sleepSchedule'
 import type { AppState, DayLog, DayPlanItem, Recurring, TimeBlock } from '../types'
 
 const SLEEP_TEMPLATES: Record<'weekday' | 'saturday' | 'sunday', Omit<TimeBlock, 'id'>> = {
   weekday: SLEEP_BLOCK_WEEKDAY,
   saturday: SLEEP_BLOCK_SATURDAY,
   sunday: SLEEP_BLOCK_SUNDAY,
-}
-
-function isSleepBlock(block: TimeBlock): boolean {
-  return /^sleep$/i.test(block.label.trim())
 }
 
 function hasSleepForRecurring(blocks: TimeBlock[], recurring: Recurring): boolean {
@@ -54,18 +56,28 @@ function patchTodayPlan(days: Record<string, DayLog>, timeBlocks: TimeBlock[]): 
   const log = days[todayKey]
   if (!log) return days
   const plan = getDailyPlan(log)
-  const nextPlan = ensureSleepInPlan(plan, timeBlocks, new Date())
-  if (nextPlan.length === plan.length) return days
+  let nextPlan = ensureSleepInPlan(plan, timeBlocks, new Date())
+  if (nextPlan.length > 0) {
+    nextPlan = refreshBlockTimesInPlan(nextPlan, timeBlocks)
+  }
+  if (nextPlan.length === plan.length && JSON.stringify(nextPlan) === JSON.stringify(plan)) {
+    return days
+  }
   return { ...days, [todayKey]: { ...log, dailyPlan: nextPlan } }
 }
 
-/** Apply Sleep block + today's plan patch for existing saved schedules. */
+/** Apply Sleep block (8h), align morning blocks to wake time, patch today's plan. */
 export function applySleepScheduleMigration(state: AppState): [AppState, boolean] {
-  const timeBlocks = ensureSleepBlocks(state.timeBlocks)
+  const timeBlocks = alignAllSchedulesToSleep(ensureSleepBlocks(state.timeBlocks))
   const days = patchTodayPlan(state.days, timeBlocks)
   const todayKey = formatDateKey(new Date())
-  const blocksChanged = timeBlocks.length !== state.timeBlocks.length
-  const planChanged = getDailyPlan(days[todayKey]).length !== getDailyPlan(state.days[todayKey]).length
+  const blocksChanged =
+    timeBlocks.length !== state.timeBlocks.length ||
+    JSON.stringify(timeBlocks) !== JSON.stringify(state.timeBlocks)
+  const prevPlan = getDailyPlan(state.days[todayKey])
+  const nextPlan = getDailyPlan(days[todayKey])
+  const planChanged =
+    nextPlan.length !== prevPlan.length || JSON.stringify(nextPlan) !== JSON.stringify(prevPlan)
   const changed = blocksChanged || planChanged
   if (!changed) return [state, false]
   return [{ ...state, timeBlocks, days }, true]

@@ -3,14 +3,23 @@ import { PageHeader } from '../components/layout/Shell'
 import { FlexibleDurationField, FlexibleTimeField } from '../components/PlanTimeControls'
 import { TimelineDayView } from '../components/TimelineDayView'
 import {
+  defaultNewBlockForDay,
   formatDateKey,
   formatDuration,
   formatTime,
   getBlocksForDate,
   parseDateKey,
+  blockScheduleLabel,
+  isOneOffBlock,
   recurringLabel,
 } from '../lib/dates'
+import { createId } from '../lib/id'
 import { buildPlanDisplayEntries, getDailyPlan, syncPlanItemsForBlock } from '../lib/dailyPlan'
+import {
+  formatSleepWakeHint,
+  isSleepBlock,
+  SLEEP_DURATION_MINUTES,
+} from '../lib/sleepSchedule'
 import { burnoutWarning, scheduledMinutesForDay } from '../lib/burnout'
 import { CATEGORY_COLORS, CATEGORY_LABELS, type ActivityCategory, type Recurring, type TimeBlock } from '../types'
 import { useStore } from '../store/useStore'
@@ -90,15 +99,18 @@ export function SchedulePage() {
 
   const applyBlockEdit = useCallback(
     (block: TimeBlock) => {
-      updateTimeBlock(block.id, block)
+      const normalized = isSleepBlock(block)
+        ? { ...block, durationMinutes: SLEEP_DURATION_MINUTES }
+        : block
+      updateTimeBlock(normalized.id, normalized)
       const plan = dayLog.dailyPlan ?? []
       if (plan.some((item) => item.kind === 'block' && item.blockId === block.id)) {
         updateDay(dateKey, {
-          dailyPlan: syncPlanItemsForBlock(plan, block.id, {
-            label: block.label,
-            category: block.category,
-            startMinutes: block.startMinutes,
-            durationMinutes: block.durationMinutes,
+          dailyPlan: syncPlanItemsForBlock(plan, normalized.id, {
+            label: normalized.label,
+            category: normalized.category,
+            startMinutes: normalized.startMinutes,
+            durationMinutes: normalized.durationMinutes,
           }),
         })
       }
@@ -111,6 +123,23 @@ export function SchedulePage() {
     const next = { ...editing, ...patch }
     setEditing(next)
     applyBlockEdit(next)
+  }
+
+  const handleDeleteBlock = (block: TimeBlock) => {
+    const scope = isOneOffBlock(block)
+      ? `only ${blockScheduleLabel(block)}`
+      : 'your recurring schedule'
+    const ok = window.confirm(`Delete "${block.label}" from ${scope}?`)
+    if (!ok) return
+    removeTimeBlock(block.id)
+    if (editing?.id === block.id) setEditing(null)
+  }
+
+  const handleAddBlock = () => {
+    const defaults = defaultNewBlockForDay(state.timeBlocks, selectedDate)
+    const id = createId()
+    addTimeBlock(defaults, id)
+    setEditing({ ...defaults, id })
   }
 
   useEffect(() => {
@@ -208,12 +237,15 @@ export function SchedulePage() {
                       >
                         {CATEGORY_LABELS[block.category]}
                       </span>
-                      <span className="text-xs text-faint">{recurringLabel(block.recurring)}</span>
+                      <span className="text-xs text-faint">{blockScheduleLabel(block)}</span>
                       {focused && <span className="text-[10px] text-accent">· in Upcoming</span>}
                     </div>
                     <div className="mt-1 text-[15px] font-semibold">{block.label}</div>
                     <div className="mt-0.5 text-xs text-subtle">
                       {formatTime(block.startMinutes)} · {formatDuration(block.durationMinutes)}
+                      {isSleepBlock(block) && (
+                        <span className="text-faint"> · {formatSleepWakeHint(block.startMinutes)}</span>
+                      )}
                     </div>
                   </button>
 
@@ -224,6 +256,13 @@ export function SchedulePage() {
                       className="rounded-lg bg-inset-2 px-2 py-1 text-[10px] text-subtle"
                     >
                       Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteBlock(block)}
+                      className="rounded-lg bg-red-500/15 px-2 py-1 text-[10px] text-red-400"
+                    >
+                      Delete
                     </button>
                     <button
                       type="button"
@@ -243,16 +282,7 @@ export function SchedulePage() {
 
         <button
           type="button"
-          onClick={() =>
-            addTimeBlock({
-              startMinutes: 12 * 60,
-              durationMinutes: 60,
-              label: 'New block',
-              category: 'life',
-              recurring: 'weekday',
-              enabled: true,
-            })
-          }
+          onClick={handleAddBlock}
           className="w-full rounded-3xl border border-dashed border-border py-4 text-sm text-subtle"
         >
           + Add time block
@@ -297,14 +327,22 @@ export function SchedulePage() {
                   </label>
                   <label className="block text-xs text-subtle">
                     Duration (min)
-                    <FlexibleDurationField
-                      minutes={editing.durationMinutes}
-                      onChange={(durationMinutes) => patchEditing({ durationMinutes })}
-                      className="mt-1 w-full rounded-xl bg-inset px-3 py-2.5 text-sm outline-none"
-                    />
-                    <span className="mt-1 block text-[10px] text-faint">
-                      Any minutes: 45 · 90 · 120 · 1h30
-                    </span>
+                    {isSleepBlock(editing) ? (
+                      <p className="mt-1 rounded-xl bg-inset px-3 py-2.5 text-sm text-subtle">
+                        8 hours (fixed) · {formatSleepWakeHint(editing.startMinutes)}
+                      </p>
+                    ) : (
+                      <>
+                        <FlexibleDurationField
+                          minutes={editing.durationMinutes}
+                          onChange={(durationMinutes) => patchEditing({ durationMinutes })}
+                          className="mt-1 w-full rounded-xl bg-inset px-3 py-2.5 text-sm outline-none"
+                        />
+                        <span className="mt-1 block text-[10px] text-faint">
+                          Any minutes: 45 · 90 · 120 · 1h30
+                        </span>
+                      </>
+                    )}
                   </label>
                 </div>
                 <label className="block text-xs text-subtle">
@@ -321,15 +359,21 @@ export function SchedulePage() {
                 </label>
                 <label className="block text-xs text-subtle">
                   Recurring
-                  <select
-                    value={editing.recurring}
-                    onChange={(e) => patchEditing({ recurring: e.target.value as Recurring })}
-                    className="mt-1 w-full rounded-xl bg-inset px-3 py-2.5 text-sm outline-none"
-                  >
-                    {(['daily', 'weekday', 'weekend', 'saturday', 'sunday'] as Recurring[]).map((r) => (
-                      <option key={r} value={r}>{recurringLabel(r)}</option>
-                    ))}
-                  </select>
+                  {isOneOffBlock(editing) ? (
+                    <p className="mt-1 rounded-xl bg-inset px-3 py-2.5 text-sm text-subtle">
+                      {blockScheduleLabel(editing)} — added for this day only
+                    </p>
+                  ) : (
+                    <select
+                      value={editing.recurring}
+                      onChange={(e) => patchEditing({ recurring: e.target.value as Recurring })}
+                      className="mt-1 w-full rounded-xl bg-inset px-3 py-2.5 text-sm outline-none"
+                    >
+                      {(['daily', 'weekday', 'weekend', 'saturday', 'sunday'] as Recurring[]).map((r) => (
+                        <option key={r} value={r}>{recurringLabel(r)}</option>
+                      ))}
+                    </select>
+                  )}
                 </label>
                 <label className="flex items-center justify-between rounded-xl bg-inset px-3 py-2.5">
                   <span className="text-sm text-muted">Enabled</span>
@@ -347,10 +391,7 @@ export function SchedulePage() {
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    removeTimeBlock(editing.id)
-                    setEditing(null)
-                  }}
+                  onClick={() => handleDeleteBlock(editing)}
                   className="rounded-2xl bg-red-500/15 px-4 py-3 text-sm text-red-400"
                 >
                   Delete

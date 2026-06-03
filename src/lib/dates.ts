@@ -77,8 +77,15 @@ export function formatWeekRange(weekKey: string): string {
   return `${fmt(start)} – ${fmt(end)}`
 }
 
+export function isOneOffBlock(block: TimeBlock): boolean {
+  return Boolean(block.dateKey)
+}
+
 export function blockAppliesToday(block: TimeBlock, date: Date): boolean {
   if (!block.enabled) return false
+  if (block.dateKey) {
+    return block.dateKey === formatDateKey(date)
+  }
   const day = date.getDay()
   switch (block.recurring) {
     case 'daily':
@@ -100,6 +107,34 @@ export function getBlocksForDate(blocks: TimeBlock[], date: Date): TimeBlock[] {
   return blocks
     .filter((b) => blockAppliesToday(b, date))
     .sort((a, b) => a.startMinutes - b.startMinutes)
+}
+
+export function recurringForDate(date: Date): Recurring {
+  const dayType = getDayType(date)
+  if (dayType === 'saturday') return 'saturday'
+  if (dayType === 'sunday') return 'sunday'
+  return 'weekday'
+}
+
+/** New blocks start after the last block on this day; they apply to this date only. */
+export function defaultNewBlockForDay(
+  timeBlocks: TimeBlock[],
+  date: Date,
+): Omit<TimeBlock, 'id'> {
+  const dayBlocks = getBlocksForDate(timeBlocks, date)
+  const end =
+    dayBlocks.length > 0
+      ? Math.max(...dayBlocks.map((b) => b.startMinutes + b.durationMinutes))
+      : 9 * 60
+  return {
+    startMinutes: clampDayMinutes(end),
+    durationMinutes: 60,
+    label: 'New block',
+    category: 'life',
+    recurring: 'none',
+    dateKey: formatDateKey(date),
+    enabled: true,
+  }
 }
 
 export function getCurrentBlock(blocks: TimeBlock[], date: Date = new Date()): TimeBlock | null {
@@ -275,4 +310,11 @@ export function recurringLabel(r: Recurring): string {
     none: 'One-off',
   }
   return map[r]
+}
+
+export function blockScheduleLabel(block: TimeBlock): string {
+  if (block.dateKey) {
+    return `${formatShortDate(parseDateKey(block.dateKey))} only`
+  }
+  return recurringLabel(block.recurring)
 }

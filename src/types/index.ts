@@ -32,6 +32,8 @@ export interface TimeBlock {
   category: ActivityCategory
   recurring: Recurring
   enabled: boolean
+  /** When set, block only appears on this calendar day (YYYY-MM-DD). */
+  dateKey?: string
 }
 
 export interface Task {

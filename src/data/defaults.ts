@@ -20,9 +20,11 @@ function block(
   }
 }
 
+import { SLEEP_DURATION_MINUTES } from '../lib/sleepSchedule'
+
 export const SLEEP_BLOCK_WEEKDAY: Omit<TimeBlock, 'id'> = {
   startMinutes: 23 * 60 + 30,
-  durationMinutes: 90,
+  durationMinutes: SLEEP_DURATION_MINUTES,
   label: 'Sleep',
   category: 'rest',
   recurring: 'weekday',
@@ -31,7 +33,7 @@ export const SLEEP_BLOCK_WEEKDAY: Omit<TimeBlock, 'id'> = {
 
 export const SLEEP_BLOCK_SATURDAY: Omit<TimeBlock, 'id'> = {
   startMinutes: 23 * 60 + 30,
-  durationMinutes: 90,
+  durationMinutes: SLEEP_DURATION_MINUTES,
   label: 'Sleep',
   category: 'rest',
   recurring: 'saturday',
@@ -40,7 +42,7 @@ export const SLEEP_BLOCK_SATURDAY: Omit<TimeBlock, 'id'> = {
 
 export const SLEEP_BLOCK_SUNDAY: Omit<TimeBlock, 'id'> = {
   startMinutes: 22 * 60 + 30,
-  durationMinutes: 90,
+  durationMinutes: SLEEP_DURATION_MINUTES,
   label: 'Sleep',
   category: 'rest',
   recurring: 'sunday',
