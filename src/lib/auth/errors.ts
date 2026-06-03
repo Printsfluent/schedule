@@ -1,6 +1,8 @@
 /** User-friendly copy for Firebase auth errors. */
 export function formatAuthError(message: string, code?: string): string {
   switch (code) {
+    case 'auth/configuration-not-found':
+      return 'Firebase Auth is not set up yet. Open Firebase Console → Authentication → Get started, then enable Email/Password under Sign-in method.'
     case 'auth/email-already-in-use':
       return 'That email is already registered. Try signing in.'
     case 'auth/invalid-email':
@@ -14,7 +16,9 @@ export function formatAuthError(message: string, code?: string): string {
     case 'auth/too-many-requests':
       return 'Too many attempts. Wait a minute and try again.'
     case 'auth/operation-not-allowed':
-      return 'Email/password sign-in is disabled in Firebase. Enable it under Authentication → Sign-in method → Email/Password.'
+      return 'This sign-in method is disabled in Firebase. Enable it under Authentication → Sign-in method.'
+    case 'auth/popup-blocked':
+      return 'Pop-up blocked. Allow pop-ups for this site and try Google sign-in again.'
     case 'auth/user-disabled':
       return 'This account has been disabled.'
   }

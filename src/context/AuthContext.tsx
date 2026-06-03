@@ -9,13 +9,16 @@ import {
 } from 'react'
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
   sendEmailVerification,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut as firebaseSignOut,
   updateProfile,
   type User,
 } from 'firebase/auth'
+import { skipEmailVerification } from '../lib/auth/config'
 import { messageFromUnknownError } from '../lib/auth/errors'
 import { applyAuthSessionResetIfNeeded } from '../lib/auth/sessionReset'
 import { isValidEmail, isValidUsername } from '../lib/auth/validation'
@@ -42,8 +45,10 @@ type AuthContextValue = {
   user: AuthUser | null
   loading: boolean
   authConfigured: boolean
+  skipEmailVerification: boolean
   signIn: (email: string, password: string) => Promise<SignInResult>
   signUp: (email: string, username: string, password: string) => Promise<SignUpResult>
+  signInWithGoogle: () => Promise<SignInResult>
   refreshEmailVerification: () => Promise<boolean>
   resendVerificationEmail: () => Promise<string | null>
   signOut: () => Promise<void>
@@ -66,13 +71,18 @@ function userFromFirebase(fbUser: User): AuthUser | null {
   }
 }
 
+function canUseApp(fbUser: User): boolean {
+  return Boolean(fbUser.email && (fbUser.emailVerified || skipEmailVerification()))
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
   const authConfigured = isFirebaseConfigured()
+  const skipVerification = skipEmailVerification()
 
   const applyFirebaseUser = useCallback((fbUser: User | null) => {
-    if (!fbUser?.email || !fbUser.emailVerified) {
+    if (!fbUser || !canUseApp(fbUser)) {
       setUser(null)
       return
     }
@@ -121,13 +131,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const credential = await signInWithEmailAndPassword(auth, normalized, password)
-      if (!credential.user.emailVerified) {
+      if (!credential.user.emailVerified && !skipEmailVerification()) {
         return { status: 'verify_email' }
       }
       applyFirebaseUser(credential.user)
       return { status: 'signed_in' }
     } catch (err) {
       const { message, code } = messageFromUnknownError(err)
+      return { status: 'error', message, code }
+    }
+  }, [applyFirebaseUser])
+
+  const signInWithGoogle = useCallback(async (): Promise<SignInResult> => {
+    const auth = getFirebaseAuth()
+    if (!auth) {
+      return {
+        status: 'error',
+        message: 'Firebase is not configured. Add VITE_FIREBASE_* keys to your environment.',
+      }
+    }
+
+    try {
+      const provider = new GoogleAuthProvider()
+      provider.setCustomParameters({ prompt: 'select_account' })
+      const credential = await signInWithPopup(auth, provider)
+      applyFirebaseUser(credential.user)
+      return { status: 'signed_in' }
+    } catch (err) {
+      const { message, code } = messageFromUnknownError(err)
+      if (code === 'auth/popup-closed-by-user') {
+        return { status: 'error', message: 'Sign-in cancelled.' }
+      }
       return { status: 'error', message, code }
     }
   }, [applyFirebaseUser])
@@ -161,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         )
         await updateProfile(credential.user, { displayName: username.trim().toLowerCase() })
 
-        if (credential.user.emailVerified) {
+        if (credential.user.emailVerified || skipEmailVerification()) {
           applyFirebaseUser(credential.user)
           return { status: 'signed_in' }
         }
@@ -184,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const fbUser = auth?.currentUser
     if (!fbUser) return false
     await fbUser.reload()
-    if (fbUser.emailVerified) {
+    if (canUseApp(fbUser)) {
       applyFirebaseUser(fbUser)
       return true
     }
@@ -220,8 +254,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       authConfigured,
+      skipEmailVerification: skipVerification,
       signIn,
       signUp,
+      signInWithGoogle,
       refreshEmailVerification,
       resendVerificationEmail,
       signOut,
@@ -230,8 +266,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       authConfigured,
+      skipVerification,
       signIn,
       signUp,
+      signInWithGoogle,
       refreshEmailVerification,
       resendVerificationEmail,
       signOut,
