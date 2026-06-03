@@ -23,7 +23,7 @@
       ]
     },
     {
-      "source": "/rhythm-sw-v4.js",
+      "source": "/rhythm-sw-v6.js",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]

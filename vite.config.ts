@@ -4,6 +4,13 @@ import tailwindcss from '@tailwindcss/vite'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 import { VitePWA } from 'vite-plugin-pwa'
 import os from 'os'
+import {
+  FORCE_LOGIN_LOCAL_KEY,
+  SERVICE_WORKER_FILE,
+  SW_PURGE_LOCAL_KEY,
+  SW_RELOAD_SESSION_KEY,
+  WORKBOX_CACHE_ID,
+} from './src/lib/auth/gateVersion'
 
 const useHttps = process.env.VITE_HTTPS !== 'false'
 const isCapacitorBuild = process.env.CAPACITOR === 'true'
@@ -22,6 +29,7 @@ function lanIp(): string | null {
 }
 
 const webBase = process.env.VITE_BASE_PATH ?? '/'
+const loginPath = `${webBase.replace(/\/$/, '')}/login` || '/login'
 const appBuildId =
   process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? `local-${Date.now()}`
 
@@ -32,6 +40,16 @@ export default defineConfig({
   },
   plugins: [
     ...(useHttps ? [basicSsl()] : []),
+    {
+      name: 'inject-auth-gate',
+      transformIndexHtml(html) {
+        return html
+          .replaceAll('__SW_PURGE_KEY__', SW_PURGE_LOCAL_KEY)
+          .replaceAll('__FORCE_LOGIN_KEY__', FORCE_LOGIN_LOCAL_KEY)
+          .replaceAll('__SW_RELOAD_KEY__', SW_RELOAD_SESSION_KEY)
+          .replaceAll('__LOGIN_PATH__', loginPath)
+      },
+    },
     react(),
     tailwindcss(),
     ...(isCapacitorBuild
@@ -41,7 +59,7 @@ export default defineConfig({
       devOptions: { enabled: useHttps, type: 'module' },
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      filename: 'rhythm-sw-v4.js',
+      filename: SERVICE_WORKER_FILE,
       includeAssets: ['favicon.svg', 'logo.svg'],
       manifest: {
         name: 'Rhythm',
@@ -57,7 +75,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        cacheId: 'rhythm-auth-v4',
+        cacheId: WORKBOX_CACHE_ID,
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,

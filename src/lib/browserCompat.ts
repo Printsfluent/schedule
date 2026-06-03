@@ -1,3 +1,5 @@
+import { SERVICE_WORKER_FILE } from './auth/gateVersion'
+
 /** Cross-browser helpers for Safari, Chrome, Firefox, Edge, and mobile WebViews. */
 
 const memoryStore = new Map<string, string>()
@@ -161,7 +163,7 @@ export async function cleanupStaleServiceWorkers() {
     // Production: drop legacy service workers (old sw.js / workbox bundles).
     for (const reg of regs) {
       const script = reg.active?.scriptURL ?? reg.installing?.scriptURL ?? reg.waiting?.scriptURL ?? ''
-      if (!script.includes('rhythm-sw-v4.js')) {
+      if (!script.includes(SERVICE_WORKER_FILE)) {
         await reg.unregister()
       }
     }

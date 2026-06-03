@@ -1,4 +1,5 @@
 import { clearAuthStorage } from './auth/clearAuthStorage'
+import { FORCE_LOGIN_LOCAL_KEY } from './auth/gateVersion'
 
 declare const __APP_BUILD_ID__: string
 
@@ -36,6 +37,7 @@ export async function bootstrapAppUpdate(): Promise<boolean> {
   if (previous === buildId) return false
 
   localStorage.setItem(BUILD_KEY, buildId)
+  localStorage.removeItem(FORCE_LOGIN_LOCAL_KEY)
   clearAuthStorage()
 
   const reloadKey = `rhythm-build-reload-${buildId}`

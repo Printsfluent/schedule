@@ -14,11 +14,12 @@
     <script>
       (function () {
         try {
-          var purgeKey = 'rhythm-sw-purge-v4';
+          var purgeKey = '__SW_PURGE_KEY__';
           if (localStorage.getItem(purgeKey)) return;
           localStorage.setItem(purgeKey, '1');
           localStorage.removeItem('rhythm-app-build-id');
-          var reloadKey = 'rhythm-sw-reload-v4';
+          localStorage.removeItem('__FORCE_LOGIN_KEY__');
+          var reloadKey = '__SW_RELOAD_KEY__';
           function maybeReload() {
             if (!sessionStorage.getItem(reloadKey)) {
               sessionStorage.setItem(reloadKey, '1');
@@ -38,6 +39,31 @@
               });
             }
           }).then(maybeReload).catch(maybeReload);
+        } catch (e) {}
+      })();
+    </script>
+    <script>
+      (function () {
+        try {
+          var gateKey = '__FORCE_LOGIN_KEY__';
+          if (localStorage.getItem(gateKey) === 'done') return;
+          for (var i = localStorage.length - 1; i >= 0; i--) {
+            var k = localStorage.key(i);
+            if (
+              k &&
+              (k.indexOf('firebase:') === 0 ||
+                k.indexOf('sb-') === 0 ||
+                k.indexOf('firebaseLocalStorage') >= 0)
+            ) {
+              localStorage.removeItem(k);
+            }
+          }
+          localStorage.setItem(gateKey, 'done');
+          var loginPath = '__LOGIN_PATH__';
+          var path = location.pathname;
+          if (path !== loginPath && path.slice(-6) !== '/login') {
+            location.replace(loginPath + location.search + location.hash);
+          }
         } catch (e) {}
       })();
     </script>

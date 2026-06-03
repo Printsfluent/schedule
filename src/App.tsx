@@ -76,6 +76,13 @@ export default function App() {
   useTheme(state.settings.theme)
 
   useEffect(() => {
+    if (!authLoading && !user && !isLoginRoute) {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, '') || ''
+      window.location.replace(`${base}/login${location.search}${location.hash}`)
+    }
+  }, [authLoading, user, isLoginRoute, location.search, location.hash])
+
+  useEffect(() => {
     if (window.location.search.includes('reset=')) {
       window.history.replaceState({}, '', window.location.pathname)
       return
