@@ -13,11 +13,13 @@ import {
   isOneOffBlock,
   recurringLabel,
 } from '../lib/dates'
+import { cascadeBlocksForDate, getRawBlocksForDate } from '../lib/blockCascade'
 import { createId } from '../lib/id'
 import { buildPlanDisplayEntries, getDailyPlan, syncPlanItemsForBlock } from '../lib/dailyPlan'
 import {
   formatSleepWakeHint,
   isSleepBlock,
+  normalizeSleepDurations,
   SLEEP_DURATION_MINUTES,
 } from '../lib/sleepSchedule'
 import { burnoutWarning, scheduledMinutesForDay } from '../lib/burnout'
@@ -48,6 +50,10 @@ export function SchedulePage() {
     () => getBlocksForDate(state.timeBlocks, selectedDate),
     [state.timeBlocks, selectedDate],
   )
+  const rawDayBlocks = useMemo(
+    () => getRawBlocksForDate(state.timeBlocks, selectedDate),
+    [state.timeBlocks, selectedDate],
+  )
   const planEntries = useMemo(
     () => buildPlanDisplayEntries(dayLog, dayBlocks),
     [dayLog, dayBlocks],
@@ -66,23 +72,23 @@ export function SchedulePage() {
     setPlanFocus(dateKey, block.id)
   }
 
-  /** Swap start times with the block above/below so order changes on the time-sorted list. */
+  /** Swap list order (stored sort keys); displayed times re-chain after. */
   const moveBlock = (id: string, dir: -1 | 1) => {
-    const idx = dayBlocks.findIndex((b) => b.id === id)
+    const idx = rawDayBlocks.findIndex((b) => b.id === id)
     const swapIdx = idx + dir
-    if (idx < 0 || swapIdx < 0 || swapIdx >= dayBlocks.length) return
-    const current = dayBlocks[idx]
-    const neighbor = dayBlocks[swapIdx]
-    updateTimeBlock(current.id, { startMinutes: neighbor.startMinutes })
-    updateTimeBlock(neighbor.id, { startMinutes: current.startMinutes })
+    if (idx < 0 || swapIdx < 0 || swapIdx >= rawDayBlocks.length) return
+    const current = rawDayBlocks[idx]
+    const neighbor = rawDayBlocks[swapIdx]
+    updateTimeBlock(current.id, { startMinutes: neighbor.startMinutes }, dateKey)
+    updateTimeBlock(neighbor.id, { startMinutes: current.startMinutes }, dateKey)
   }
 
   const swapBlockTimes = (idA: string, idB: string) => {
-    const a = dayBlocks.find((b) => b.id === idA)
-    const b = dayBlocks.find((b) => b.id === idB)
+    const a = rawDayBlocks.find((b) => b.id === idA)
+    const b = rawDayBlocks.find((b) => b.id === idB)
     if (!a || !b) return
-    updateTimeBlock(a.id, { startMinutes: b.startMinutes })
-    updateTimeBlock(b.id, { startMinutes: a.startMinutes })
+    updateTimeBlock(a.id, { startMinutes: b.startMinutes }, dateKey)
+    updateTimeBlock(b.id, { startMinutes: a.startMinutes }, dateKey)
   }
 
   const handleDrop = (targetId: string) => {
@@ -102,26 +108,57 @@ export function SchedulePage() {
       const normalized = isSleepBlock(block)
         ? { ...block, durationMinutes: SLEEP_DURATION_MINUTES }
         : block
-      updateTimeBlock(normalized.id, normalized)
+      let simulated = state.timeBlocks.map((b) =>
+        b.id === normalized.id ? { ...b, ...normalized } : b,
+      )
+      if (isSleepBlock(normalized)) {
+        simulated = normalizeSleepDurations(simulated)
+      }
+      const cascaded = cascadeBlocksForDate(simulated, selectedDate).find(
+        (b) => b.id === normalized.id,
+      )
+      updateTimeBlock(normalized.id, normalized, dateKey)
       const plan = dayLog.dailyPlan ?? []
       if (plan.some((item) => item.kind === 'block' && item.blockId === block.id)) {
         updateDay(dateKey, {
           dailyPlan: syncPlanItemsForBlock(plan, normalized.id, {
             label: normalized.label,
             category: normalized.category,
-            startMinutes: normalized.startMinutes,
-            durationMinutes: normalized.durationMinutes,
+            startMinutes: cascaded?.startMinutes ?? normalized.startMinutes,
+            durationMinutes: cascaded?.durationMinutes ?? normalized.durationMinutes,
           }),
         })
       }
     },
-    [dateKey, dayLog.dailyPlan, updateDay, updateTimeBlock],
+    [dateKey, dayLog.dailyPlan, selectedDate, state.timeBlocks, updateDay, updateTimeBlock],
   )
 
   const patchEditing = (patch: Partial<TimeBlock>) => {
     if (!editing) return
     const next = { ...editing, ...patch }
     setEditing(next)
+    if (patch.startMinutes != null) {
+      const cascaded = getBlocksForDate(state.timeBlocks, selectedDate)
+      const idx = cascaded.findIndex((b) => b.id === editing.id)
+      if (idx > 0) {
+        const prev = cascaded[idx - 1]
+        const newDur = patch.startMinutes - prev.startMinutes
+        if (newDur >= 5) {
+          let simulated = state.timeBlocks.map((b) =>
+            b.id === prev.id ? { ...b, durationMinutes: newDur } : b,
+          )
+          const refreshed = cascadeBlocksForDate(simulated, selectedDate).find(
+            (b) => b.id === editing.id,
+          )
+          updateTimeBlock(prev.id, { durationMinutes: newDur }, dateKey)
+          setEditing({
+            ...next,
+            startMinutes: refreshed?.startMinutes ?? patch.startMinutes,
+          })
+          return
+        }
+      }
+    }
     applyBlockEdit(next)
   }
 
@@ -138,7 +175,7 @@ export function SchedulePage() {
   const handleAddBlock = () => {
     const defaults = defaultNewBlockForDay(state.timeBlocks, selectedDate)
     const id = createId()
-    addTimeBlock(defaults, id)
+    addTimeBlock(defaults, id, dateKey)
     setEditing({ ...defaults, id })
   }
 

@@ -58,7 +58,7 @@ function patchTodayPlan(days: Record<string, DayLog>, timeBlocks: TimeBlock[]): 
   const plan = getDailyPlan(log)
   let nextPlan = ensureSleepInPlan(plan, timeBlocks, new Date())
   if (nextPlan.length > 0) {
-    nextPlan = refreshBlockTimesInPlan(nextPlan, timeBlocks)
+    nextPlan = refreshBlockTimesInPlan(nextPlan, timeBlocks, new Date())
   }
   if (nextPlan.length === plan.length && JSON.stringify(nextPlan) === JSON.stringify(plan)) {
     return days

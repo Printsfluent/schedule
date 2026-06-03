@@ -120,12 +120,17 @@ export function syncPlanItemsForBlock(
   )
 }
 
-/** Pull latest block times into the plan, then re-chain overlapping items. */
-export function refreshBlockTimesInPlan(plan: DayPlanItem[], timeBlocks: TimeBlock[]): DayPlanItem[] {
+/** Pull latest cascaded block times into the plan, then re-chain plan items. */
+export function refreshBlockTimesInPlan(
+  plan: DayPlanItem[],
+  timeBlocks: TimeBlock[],
+  forDate: Date,
+): DayPlanItem[] {
+  const dayBlocks = getBlocksForDate(timeBlocks, forDate)
   let next = plan
   for (const item of plan) {
     if (item.kind !== 'block' || !item.blockId) continue
-    const block = timeBlocks.find((b) => b.id === item.blockId)
+    const block = dayBlocks.find((b) => b.id === item.blockId)
     if (!block) continue
     next = syncPlanItemsForBlock(next, block.id, {
       label: block.label,

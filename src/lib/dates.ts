@@ -1,3 +1,4 @@
+import { cascadeBlocksForDate } from './blockCascade'
 import type { DayLog, Recurring, StudyBlocks, TimeBlock } from '../types'
 
 export function formatDateKey(date: Date): string {
@@ -103,10 +104,9 @@ export function blockAppliesToday(block: TimeBlock, date: Date): boolean {
   }
 }
 
+/** Blocks for a date with times chained end-to-end; first block follows prior night's sleep. */
 export function getBlocksForDate(blocks: TimeBlock[], date: Date): TimeBlock[] {
-  return blocks
-    .filter((b) => blockAppliesToday(b, date))
-    .sort((a, b) => a.startMinutes - b.startMinutes)
+  return cascadeBlocksForDate(blocks, date)
 }
 
 export function recurringForDate(date: Date): Recurring {

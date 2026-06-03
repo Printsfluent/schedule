@@ -16,6 +16,7 @@ import type {
   TimeBlock,
   WeeklyPlan,
 } from '../types'
+import { persistOneOffCascadeStarts } from '../lib/blockCascade'
 import { refreshBlockTimesInPlan } from '../lib/dailyPlan'
 import { emptyDayLog, formatDateKey, getBlocksForDate, parseDateKey } from '../lib/dates'
 import { applyAutoHabitsToLog } from '../lib/habitTracking'
@@ -24,7 +25,7 @@ import { safeStorage } from '../lib/browserCompat'
 import { getDeviceStorageKey, getUserStorageKey, STORAGE_BASE } from '../lib/deviceStorage'
 import { clampDurationSeconds } from '../lib/duration'
 import { applySleepScheduleMigration } from '../lib/ensureSleepBlock'
-import { alignAllSchedulesToSleep, isSleepBlock } from '../lib/sleepSchedule'
+import { isSleepBlock, normalizeSleepDurations } from '../lib/sleepSchedule'
 import { createId } from '../lib/id'
 
 let storageKey = getDeviceStorageKey(STORAGE_BASE)
@@ -482,38 +483,55 @@ export function useStore() {
     })
   }, [])
 
-  const updateTimeBlock = useCallback((blockId: string, patch: Partial<TimeBlock>) => {
-    setState((s) => {
-      let timeBlocks = s.timeBlocks.map((b) => (b.id === blockId ? { ...b, ...patch } : b))
-      const updated = timeBlocks.find((b) => b.id === blockId)
-      let days = s.days
-      if (updated && isSleepBlock(updated)) {
-        timeBlocks = alignAllSchedulesToSleep(timeBlocks)
-        const todayKey = formatDateKey(new Date())
-        const log = s.days[todayKey]
+  const updateTimeBlock = useCallback(
+    (blockId: string, patch: Partial<TimeBlock>, forDateKey?: string) => {
+      setState((s) => {
+        let timeBlocks = s.timeBlocks.map((b) => (b.id === blockId ? { ...b, ...patch } : b))
+        const updated = timeBlocks.find((b) => b.id === blockId)
+        let days = s.days
+        if (updated?.dateKey) {
+          timeBlocks = persistOneOffCascadeStarts(timeBlocks, parseDateKey(updated.dateKey))
+        }
+        if (updated && isSleepBlock(updated)) {
+          timeBlocks = normalizeSleepDurations(timeBlocks)
+        }
+        const refreshKey = forDateKey ?? formatDateKey(new Date())
+        const log = s.days[refreshKey]
         const plan = log?.dailyPlan
         if (log && plan && plan.length > 0) {
           days = {
             ...days,
-            [todayKey]: { ...log, dailyPlan: refreshBlockTimesInPlan(plan, timeBlocks) },
+            [refreshKey]: {
+              ...log,
+              dailyPlan: refreshBlockTimesInPlan(plan, timeBlocks, parseDateKey(refreshKey)),
+            },
           }
         }
-      }
-      return { ...s, timeBlocks, days }
-    })
-  }, [])
+        return { ...s, timeBlocks, days }
+      })
+    },
+    [],
+  )
 
-  const addTimeBlock = useCallback((block: Omit<TimeBlock, 'id'>, blockId?: string) => {
-    const id = blockId ?? createId()
-    setState((s) => ({
-      ...s,
-      timeBlocks: [...s.timeBlocks, { ...block, id }],
-    }))
-    return id
-  }, [])
+  const addTimeBlock = useCallback(
+    (block: Omit<TimeBlock, 'id'>, blockId?: string, forDateKey?: string) => {
+      const id = blockId ?? createId()
+      setState((s) => {
+        let timeBlocks = [...s.timeBlocks, { ...block, id }]
+        const dateKey = block.dateKey ?? forDateKey
+        if (dateKey) {
+          timeBlocks = persistOneOffCascadeStarts(timeBlocks, parseDateKey(dateKey))
+        }
+        return { ...s, timeBlocks }
+      })
+      return id
+    },
+    [],
+  )
 
   const removeTimeBlock = useCallback((blockId: string) => {
     setState((s) => {
+      const removed = s.timeBlocks.find((b) => b.id === blockId)
       const days: Record<string, DayLog> = {}
       for (const [key, log] of Object.entries(s.days)) {
         days[key] = {
@@ -524,9 +542,13 @@ export function useStore() {
           ),
         }
       }
+      let timeBlocks = s.timeBlocks.filter((b) => b.id !== blockId)
+      if (removed?.dateKey) {
+        timeBlocks = persistOneOffCascadeStarts(timeBlocks, parseDateKey(removed.dateKey))
+      }
       return {
         ...s,
-        timeBlocks: s.timeBlocks.filter((b) => b.id !== blockId),
+        timeBlocks,
         days,
         planFocusBlockId: s.planFocusBlockId === blockId ? null : s.planFocusBlockId,
       }
