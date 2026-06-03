@@ -16,7 +16,7 @@ import type {
   TimeBlock,
   WeeklyPlan,
 } from '../types'
-import { persistOneOffCascadeStarts } from '../lib/blockCascade'
+import { persistOneOffCascadeStarts, syncAllSleepDurationsFromNextDayWake } from '../lib/blockCascade'
 import { refreshBlockTimesInPlan } from '../lib/dailyPlan'
 import { emptyDayLog, formatDateKey, getBlocksForDate, parseDateKey } from '../lib/dates'
 import { applyAutoHabitsToLog } from '../lib/habitTracking'
@@ -504,6 +504,7 @@ export function useStore() {
               : b,
           )
         }
+        timeBlocks = syncAllSleepDurationsFromNextDayWake(timeBlocks)
         const refreshKeys = new Set<string>()
         if (forDateKey) refreshKeys.add(forDateKey)
         refreshKeys.add(formatDateKey(new Date()))

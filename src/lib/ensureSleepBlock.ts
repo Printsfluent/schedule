@@ -11,6 +11,7 @@ import {
 } from './dailyPlan'
 import { formatDateKey, getBlocksForDate } from './dates'
 import { createId } from './id'
+import { syncAllSleepDurationsFromNextDayWake } from './blockCascade'
 import { alignAllSchedulesToSleep, isSleepBlock } from './sleepSchedule'
 import type { AppState, DayLog, DayPlanItem, Recurring, TimeBlock } from '../types'
 
@@ -68,7 +69,9 @@ function patchTodayPlan(days: Record<string, DayLog>, timeBlocks: TimeBlock[]): 
 
 /** Apply Sleep block (8h), align morning blocks to wake time, patch today's plan. */
 export function applySleepScheduleMigration(state: AppState): [AppState, boolean] {
-  const timeBlocks = alignAllSchedulesToSleep(ensureSleepBlocks(state.timeBlocks))
+  const timeBlocks = syncAllSleepDurationsFromNextDayWake(
+    alignAllSchedulesToSleep(ensureSleepBlocks(state.timeBlocks)),
+  )
   const days = patchTodayPlan(state.days, timeBlocks)
   const todayKey = formatDateKey(new Date())
   const blocksChanged =

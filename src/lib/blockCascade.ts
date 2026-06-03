@@ -1,5 +1,5 @@
 import type { TimeBlock } from '../types'
-import { blockAppliesToday, clampDayMinutes, formatDateKey } from './dates'
+import { blockAppliesToday, clampDayMinutes, formatDateKey, formatTime } from './dates'
 import {
   clampSleepDuration,
   isSleepBlock,
@@ -17,6 +17,73 @@ export function previousCalendarDate(date: Date): Date {
   const prev = new Date(date)
   prev.setDate(prev.getDate() - 1)
   return prev
+}
+
+export function nextCalendarDate(date: Date): Date {
+  const next = new Date(date)
+  next.setDate(next.getDate() + 1)
+  return next
+}
+
+/** First block start on the next calendar day (matches that day's schedule). */
+export function getNextDayFirstBlockWakeMinutes(
+  allBlocks: TimeBlock[],
+  date: Date,
+): number | null {
+  const nextDay = cascadeBlocksForDate(allBlocks, nextCalendarDate(date))
+  return nextDay.length > 0 ? nextDay[0].startMinutes : null
+}
+
+/** Sleep row label — always matches the next day's first block time when available. */
+export function formatSleepWakeLabel(
+  allBlocks: TimeBlock[],
+  sleepBlock: TimeBlock,
+  onDate: Date,
+): string {
+  const nextWake = getNextDayFirstBlockWakeMinutes(allBlocks, onDate)
+  if (nextWake != null) {
+    return `Wake ~${formatTime(nextWake)}`
+  }
+  const cascaded = cascadeBlocksForDate(allBlocks, onDate, null).find((b) => b.id === sleepBlock.id)
+  const start = cascaded?.startMinutes ?? sleepBlock.startMinutes
+  const duration = cascaded?.durationMinutes ?? sleepBlock.durationMinutes
+  return `Wake ~${formatTime(sleepEndMinutes(start, duration))}`
+}
+
+/** Set last night's sleep duration so it ends when the next day's first block starts. */
+export function reconcileSleepDurationForNight(
+  timeBlocks: TimeBlock[],
+  sleepDate: Date,
+): TimeBlock[] {
+  const nextWake = getNextDayFirstBlockWakeMinutes(timeBlocks, sleepDate)
+  if (nextWake == null) return timeBlocks
+
+  const sleep = [...cascadeBlocksForDate(timeBlocks, sleepDate, null)]
+    .reverse()
+    .find(isSleepBlock)
+  if (!sleep) return timeBlocks
+
+  const newDur = clampSleepDuration(sleepDurationForWake(sleep.startMinutes, nextWake))
+  if (sleep.durationMinutes === newDur) return timeBlocks
+
+  return timeBlocks.map((block) =>
+    block.id === sleep.id ? { ...block, durationMinutes: newDur } : block,
+  )
+}
+
+/** Align all sleep blocks with the following day's first block (two passes for stability). */
+export function syncAllSleepDurationsFromNextDayWake(timeBlocks: TimeBlock[]): TimeBlock[] {
+  let next = timeBlocks
+  const anchor = new Date()
+  anchor.setHours(12, 0, 0, 0)
+  for (let pass = 0; pass < 2; pass++) {
+    for (let offset = -14; offset <= 21; offset++) {
+      const d = new Date(anchor)
+      d.setDate(d.getDate() + offset)
+      next = reconcileSleepDurationForNight(next, d)
+    }
+  }
+  return next
 }
 
 /** Prior night's sleep block with cascaded start time (no recursive wake lookup). */

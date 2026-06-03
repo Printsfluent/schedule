@@ -16,6 +16,7 @@ import {
 import {
   cascadeBlocksForDate,
   findPriorNightSleepBlock,
+  formatSleepWakeLabel,
   getRawBlocksForDate,
   previousCalendarDate,
   sleepDurationForPriorNightWake,
@@ -24,7 +25,6 @@ import { createId } from '../lib/id'
 import { buildPlanDisplayEntries, getDailyPlan, syncPlanItemsForBlock } from '../lib/dailyPlan'
 import {
   clampSleepDuration,
-  formatSleepWakeHint,
   isSleepBlock,
 } from '../lib/sleepSchedule'
 import { burnoutWarning, scheduledMinutesForDay } from '../lib/burnout'
@@ -296,7 +296,10 @@ export function SchedulePage() {
                     <div className="mt-0.5 text-xs text-subtle">
                       {formatTime(block.startMinutes)} · {formatDuration(block.durationMinutes)}
                       {isSleepBlock(block) && (
-                        <span className="text-faint"> · {formatSleepWakeHint(block.startMinutes)}</span>
+                        <span className="text-faint">
+                          {' '}
+                          · {formatSleepWakeLabel(state.timeBlocks, block, selectedDate)}
+                        </span>
                       )}
                     </div>
                   </button>
@@ -389,7 +392,7 @@ export function SchedulePage() {
                     {isSleepBlock(editing) ? (
                       <p className="mt-1 rounded-xl bg-inset px-3 py-2.5 text-sm text-subtle">
                         {formatDuration(editing.durationMinutes)} (4–8h) ·{' '}
-                        {formatSleepWakeHint(editing.startMinutes, editing.durationMinutes)}
+                        {formatSleepWakeLabel(state.timeBlocks, editing, selectedDate)}
                       </p>
                     ) : (
                       <>

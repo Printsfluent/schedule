@@ -27,13 +27,19 @@ export function sleepEndMinutes(
   return (sleepStartMinutes + durationMinutes) % (24 * 60)
 }
 
-export function formatSleepWakeHint(sleepStartMinutes: number, durationMinutes: number = SLEEP_DURATION_MINUTES): string {
-  const end = sleepEndMinutes(sleepStartMinutes, durationMinutes)
-  const h = Math.floor(end / 60)
-  const m = end % 60
+export function formatWakeTimeLabel(wakeMinutes: number): string {
+  const h = Math.floor(wakeMinutes / 60)
+  const m = wakeMinutes % 60
   const period = h >= 12 ? 'PM' : 'AM'
   const hour12 = h % 12 === 0 ? 12 : h % 12
   return `Wake ~${hour12}:${String(m).padStart(2, '0')} ${period}`
+}
+
+export function formatSleepWakeHint(
+  sleepStartMinutes: number,
+  durationMinutes: number = SLEEP_DURATION_MINUTES,
+): string {
+  return formatWakeTimeLabel(sleepEndMinutes(sleepStartMinutes, durationMinutes))
 }
 
 export function normalizeSleepDurations(timeBlocks: TimeBlock[]): TimeBlock[] {
