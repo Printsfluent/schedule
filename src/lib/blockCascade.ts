@@ -124,6 +124,85 @@ export function getRawBlocksForDate(blocks: TimeBlock[], date: Date): TimeBlock[
   return sortDayBlocks(blocks.filter((b) => blockAppliesToday(b, date)))
 }
 
+const MIN_BLOCK_DURATION = 5
+
+function mergeDayBlocksIntoStore(timeBlocks: TimeBlock[], day: TimeBlock[]): TimeBlock[] {
+  const byId = new Map(day.map((b) => [b.id, b]))
+  return timeBlocks.map((block) => (byId.has(block.id) ? { ...block, ...byId.get(block.id)! } : block))
+}
+
+/** Chain blocks on this day from an edited index; adjusts previous duration when start moves. */
+export function applyBlockCascadeOnDay(
+  timeBlocks: TimeBlock[],
+  date: Date,
+  blockId: string,
+  patch: Partial<Pick<TimeBlock, 'startMinutes' | 'durationMinutes'>>,
+): TimeBlock[] {
+  const ordered = getRawBlocksForDate(timeBlocks, date)
+  const idx = ordered.findIndex((b) => b.id === blockId)
+  if (idx < 0) return timeBlocks
+
+  const day = ordered.map((b) => ({ ...b }))
+  const merged = { ...day[idx], ...patch }
+  merged.startMinutes = clampDayMinutes(merged.startMinutes)
+  merged.durationMinutes = Math.max(MIN_BLOCK_DURATION, Math.round(merged.durationMinutes))
+  day[idx] = merged
+
+  if (patch.startMinutes != null && idx > 0) {
+    const prev = day[idx - 1]
+    const gap = merged.startMinutes - prev.startMinutes
+    if (gap >= MIN_BLOCK_DURATION) {
+      day[idx - 1] = { ...prev, durationMinutes: gap }
+    }
+  }
+
+  for (let i = idx + 1; i < day.length; i++) {
+    const prev = day[i - 1]
+    day[i] = {
+      ...day[i],
+      startMinutes: clampDayMinutes(prev.startMinutes + prev.durationMinutes),
+    }
+  }
+
+  let next = mergeDayBlocksIntoStore(timeBlocks, day)
+
+  if (idx === 0 && patch.startMinutes != null) {
+    const sleep = findPriorNightSleepBlock(next, date)
+    if (sleep) {
+      const sleepStart = cascadeBlocksForDate(next, previousCalendarDate(date), null).find(
+        (b) => b.id === sleep.id,
+      )?.startMinutes ?? sleep.startMinutes
+      const newDur = clampSleepDuration(
+        sleepDurationForWake(sleepStart, patch.startMinutes),
+      )
+      next = next.map((b) =>
+        b.id === sleep.id ? { ...b, durationMinutes: newDur } : b,
+      )
+    }
+  }
+
+  return next
+}
+
+/** Re-chain every block on this day from first block onward. */
+export function cascadeEntireDay(timeBlocks: TimeBlock[], date: Date): TimeBlock[] {
+  const ordered = getRawBlocksForDate(timeBlocks, date)
+  if (ordered.length === 0) return timeBlocks
+
+  const day = ordered.map((b) => ({ ...b }))
+  const wake = getPriorDaySleepWakeMinutes(timeBlocks, date)
+  if (wake != null) {
+    day[0].startMinutes = clampDayMinutes(wake)
+  }
+
+  for (let i = 1; i < day.length; i++) {
+    const prev = day[i - 1]
+    day[i].startMinutes = clampDayMinutes(prev.startMinutes + prev.durationMinutes)
+  }
+
+  return mergeDayBlocksIntoStore(timeBlocks, day)
+}
+
 /** Wake time from the previous calendar night's sleep block (one-day cascade only). */
 export function getPriorDaySleepWakeMinutes(
   allBlocks: TimeBlock[],

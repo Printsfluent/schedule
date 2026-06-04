@@ -16,6 +16,7 @@ import type {
   TimeBlock,
   WeeklyPlan,
 } from '../types'
+import { applyBlockCascadeOnDay, cascadeEntireDay } from '../lib/blockCascade'
 import { refreshBlockTimesInPlan } from '../lib/dailyPlan'
 import { emptyDayLog, formatDateKey, getBlocksForDate, parseDateKey } from '../lib/dates'
 import { applyAutoHabitsToLog } from '../lib/habitTracking'
@@ -489,7 +490,13 @@ export function useStore() {
   const updateTimeBlock = useCallback(
     (blockId: string, patch: Partial<TimeBlock>, forDateKey?: string) => {
       setState((s) => {
-        const timeBlocks = s.timeBlocks.map((b) => (b.id === blockId ? { ...b, ...patch } : b))
+        const date = forDateKey ? parseDateKey(forDateKey) : null
+        const cascades =
+          patch.startMinutes != null || patch.durationMinutes != null
+        let timeBlocks =
+          date && cascades
+            ? applyBlockCascadeOnDay(s.timeBlocks, date, blockId, patch)
+            : s.timeBlocks.map((b) => (b.id === blockId ? { ...b, ...patch } : b))
         let days = s.days
         const refreshKeys = new Set<string>()
         if (forDateKey) refreshKeys.add(forDateKey)
@@ -511,6 +518,53 @@ export function useStore() {
     },
     [],
   )
+
+  const recascadeDay = useCallback((forDateKey: string) => {
+    setState((s) => {
+      const timeBlocks = cascadeEntireDay(s.timeBlocks, parseDateKey(forDateKey))
+      let days = s.days
+      const log = days[forDateKey]
+      const plan = log?.dailyPlan
+      if (log && plan && plan.length > 0) {
+        days = {
+          ...days,
+          [forDateKey]: {
+            ...log,
+            dailyPlan: refreshBlockTimesInPlan(plan, timeBlocks, parseDateKey(forDateKey)),
+          },
+        }
+      }
+      return { ...s, timeBlocks, days }
+    })
+  }, [])
+
+  /** Swap stored start times for two blocks on a day, then re-chain the full day. */
+  const swapDayBlockStarts = useCallback((forDateKey: string, idA: string, idB: string) => {
+    setState((s) => {
+      const a = s.timeBlocks.find((b) => b.id === idA)
+      const b = s.timeBlocks.find((block) => block.id === idB)
+      if (!a || !b) return s
+      let timeBlocks = s.timeBlocks.map((block) => {
+        if (block.id === idA) return { ...block, startMinutes: b.startMinutes }
+        if (block.id === idB) return { ...block, startMinutes: a.startMinutes }
+        return block
+      })
+      timeBlocks = cascadeEntireDay(timeBlocks, parseDateKey(forDateKey))
+      let days = s.days
+      const log = days[forDateKey]
+      const plan = log?.dailyPlan
+      if (log && plan && plan.length > 0) {
+        days = {
+          ...days,
+          [forDateKey]: {
+            ...log,
+            dailyPlan: refreshBlockTimesInPlan(plan, timeBlocks, parseDateKey(forDateKey)),
+          },
+        }
+      }
+      return { ...s, timeBlocks, days }
+    })
+  }, [])
 
   const addTimeBlock = useCallback((block: Omit<TimeBlock, 'id'>, blockId?: string) => {
       const id = blockId ?? createId()
@@ -607,6 +661,8 @@ export function useStore() {
     toggleStudyBlock,
     addFocusMinutes,
     updateTimeBlock,
+    recascadeDay,
+    swapDayBlockStarts,
     addTimeBlock,
     removeTimeBlock,
     reorderTimeBlocks,

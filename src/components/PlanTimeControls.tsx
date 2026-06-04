@@ -127,8 +127,8 @@ export function FlexibleDurationField({
           e.currentTarget.blur()
         }
       }}
-      placeholder="min"
-      aria-label="Duration in minutes"
+      placeholder="45 · 1h · 1h30"
+      aria-label="Duration in minutes or hours"
       className={className}
     />
   )
@@ -184,7 +184,7 @@ export function TimeAdjustInput({ minutes, onChange, step = 15, compact = false 
             commitDraft()
           }
         }}
-        placeholder="HH:MM"
+        placeholder="9:30 · 2pm"
         aria-label="Time"
         className={`border-0 bg-transparent text-center font-mono tabular-nums text-fg outline-none placeholder:text-faint ${
           compact ? 'w-[4.5rem] py-1 text-xs' : 'w-[5.25rem] py-1.5 text-sm'
@@ -231,6 +231,11 @@ export function DurationAdjustInput({
   }
 
   const commitDraft = () => {
+    const parsed = parseDurationMinutes(draft)
+    if (parsed !== null) {
+      apply(parsed)
+      return
+    }
     const n = Number(draft)
     if (Number.isFinite(n) && n >= min) {
       apply(n)
@@ -250,7 +255,7 @@ export function DurationAdjustInput({
         type="text"
         inputMode="numeric"
         value={draft}
-        onChange={(e) => setDraft(e.target.value.replace(/[^\d]/g, ''))}
+        onChange={(e) => setDraft(e.target.value.replace(/[^\dh\s]/gi, ''))}
         onBlur={commitDraft}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -258,8 +263,8 @@ export function DurationAdjustInput({
             commitDraft()
           }
         }}
-        placeholder="min"
-        aria-label="Duration in minutes"
+        placeholder="45 · 1h30"
+        aria-label="Duration in minutes or hours"
         className={`border-0 bg-transparent text-center font-mono tabular-nums text-fg outline-none placeholder:text-faint ${
           compact ? 'w-10 py-1 text-xs' : 'w-12 py-1.5 text-sm'
         }`}
@@ -301,7 +306,7 @@ export function PlanTimeControls({
       <label
         className={`flex shrink-0 items-center gap-1 ${compact ? 'text-[10px] text-subtle' : 'text-xs text-subtle'}`}
       >
-        <span className="shrink-0">Min</span>
+        <span className="shrink-0">Duration</span>
         <DurationAdjustInput minutes={durationMinutes} onChange={onDurationChange} compact={compact} />
       </label>
     </div>

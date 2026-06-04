@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { PageHeader } from '../components/layout/Shell'
-import { FlexibleDurationField, FlexibleTimeField } from '../components/PlanTimeControls'
+import { DurationAdjustInput, TimeAdjustInput } from '../components/PlanTimeControls'
 import { TimelineDayView } from '../components/TimelineDayView'
 import {
   defaultNewBlockForDay,
@@ -30,6 +30,7 @@ export function SchedulePage() {
     getLog,
     toggleBlockComplete,
     updateTimeBlock,
+    swapDayBlockStarts,
     addTimeBlock,
     removeTimeBlock,
     setPlanDate,
@@ -69,23 +70,17 @@ export function SchedulePage() {
     setPlanFocus(dateKey, block.id)
   }
 
-  /** Swap list order (stored sort keys); displayed times re-chain after. */
   const moveBlock = (id: string, dir: -1 | 1) => {
     const idx = rawDayBlocks.findIndex((b) => b.id === id)
     const swapIdx = idx + dir
     if (idx < 0 || swapIdx < 0 || swapIdx >= rawDayBlocks.length) return
     const current = rawDayBlocks[idx]
     const neighbor = rawDayBlocks[swapIdx]
-    updateTimeBlock(current.id, { startMinutes: neighbor.startMinutes }, dateKey)
-    updateTimeBlock(neighbor.id, { startMinutes: current.startMinutes }, dateKey)
+    swapDayBlockStarts(dateKey, current.id, neighbor.id)
   }
 
   const swapBlockTimes = (idA: string, idB: string) => {
-    const a = rawDayBlocks.find((b) => b.id === idA)
-    const b = rawDayBlocks.find((b) => b.id === idB)
-    if (!a || !b) return
-    updateTimeBlock(a.id, { startMinutes: b.startMinutes }, dateKey)
-    updateTimeBlock(b.id, { startMinutes: a.startMinutes }, dateKey)
+    swapDayBlockStarts(dateKey, idA, idB)
   }
 
   const handleDrop = (targetId: string) => {
@@ -100,30 +95,52 @@ export function SchedulePage() {
     setEditing(null)
   }
 
-  const applyBlockEdit = useCallback(
+  const syncPlanForBlock = useCallback(
     (block: TimeBlock) => {
-      updateTimeBlock(block.id, block, dateKey)
       const plan = dayLog.dailyPlan ?? []
-      if (plan.some((item) => item.kind === 'block' && item.blockId === block.id)) {
-        updateDay(dateKey, {
-          dailyPlan: syncPlanItemsForBlock(plan, block.id, {
-            label: block.label,
-            category: block.category,
-            startMinutes: block.startMinutes,
-            durationMinutes: block.durationMinutes,
-          }),
-        })
-      }
+      if (!plan.some((item) => item.kind === 'block' && item.blockId === block.id)) return
+      const fresh = getBlocksForDate(state.timeBlocks, selectedDate).find((b) => b.id === block.id)
+      updateDay(dateKey, {
+        dailyPlan: syncPlanItemsForBlock(plan, block.id, {
+          label: block.label,
+          category: block.category,
+          startMinutes: fresh?.startMinutes ?? block.startMinutes,
+          durationMinutes: fresh?.durationMinutes ?? block.durationMinutes,
+        }),
+      })
     },
-    [dateKey, dayLog.dailyPlan, updateDay, updateTimeBlock],
+    [dateKey, dayLog.dailyPlan, selectedDate, state.timeBlocks, updateDay],
+  )
+
+  const applyBlockEdit = useCallback(
+    (block: TimeBlock, patch?: Partial<TimeBlock>) => {
+      updateTimeBlock(block.id, patch ?? block, dateKey)
+      syncPlanForBlock(block)
+    },
+    [dateKey, syncPlanForBlock, updateTimeBlock],
   )
 
   const patchEditing = (patch: Partial<TimeBlock>) => {
     if (!editing) return
-    const next = { ...editing, ...patch }
-    setEditing(next)
-    applyBlockEdit(next)
+    applyBlockEdit(editing, patch)
   }
+
+  useEffect(() => {
+    if (!editing) return
+    const fresh = dayBlocks.find((b) => b.id === editing.id)
+    if (!fresh) return
+    if (
+      fresh.startMinutes === editing.startMinutes &&
+      fresh.durationMinutes === editing.durationMinutes
+    ) {
+      return
+    }
+    setEditing((prev) =>
+      prev && prev.id === fresh.id
+        ? { ...prev, startMinutes: fresh.startMinutes, durationMinutes: fresh.durationMinutes }
+        : prev,
+    )
+  }, [dayBlocks, editing])
 
   const handleDeleteBlock = (block: TimeBlock) => {
     const scope = isOneOffBlock(block)
@@ -179,7 +196,7 @@ export function SchedulePage() {
         )}
 
         <p className="text-xs text-faint">
-          Move blocks up or down to swap their start times · drag onto another block to swap
+          Editing start or duration updates the next blocks automatically · use arrows in the editor
         </p>
 
         <div className="space-y-2">
@@ -312,29 +329,35 @@ export function SchedulePage() {
                     className="mt-1 w-full rounded-xl bg-inset px-3 py-2.5 text-sm outline-none"
                   />
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3">
                   <label className="block text-xs text-subtle">
-                    Start
-                    <FlexibleTimeField
-                      minutes={editing.startMinutes}
-                      onChange={(startMinutes) => patchEditing({ startMinutes })}
-                      className="mt-1 w-full rounded-xl bg-inset px-3 py-2.5 text-sm outline-none"
-                    />
+                    Start time
+                    <div className="mt-1">
+                      <TimeAdjustInput
+                        minutes={editing.startMinutes}
+                        onChange={(startMinutes) => patchEditing({ startMinutes })}
+                        step={5}
+                      />
+                    </div>
                     <span className="mt-1 block text-[10px] text-faint">
-                      Any format: 9:30 AM · 2 pm · 14:30 · 930 · 9
+                      Type a time or use arrows · later blocks follow automatically
                     </span>
                   </label>
                   <label className="block text-xs text-subtle">
-                    Duration (min)
-                    <FlexibleDurationField
-                      minutes={editing.durationMinutes}
-                      onChange={(durationMinutes) => patchEditing({ durationMinutes })}
-                      className="mt-1 w-full rounded-xl bg-inset px-3 py-2.5 text-sm outline-none"
-                    />
+                    Duration
+                    <div className="mt-1">
+                      <DurationAdjustInput
+                        minutes={editing.durationMinutes}
+                        onChange={(durationMinutes) => patchEditing({ durationMinutes })}
+                        step={isSleepBlock(editing) ? 15 : 5}
+                        max={isSleepBlock(editing) ? 8 * 60 : 12 * 60}
+                      />
+                    </div>
                     <span className="mt-1 block text-[10px] text-faint">
-                      {isSleepBlock(editing)
-                        ? `Shown as ${formatSleepBlockTimes(editing)}`
-                        : 'Any minutes: 45 · 90 · 120 · 1h30'}
+                      Minutes or hours (e.g. 90 · 1h30) · next block shifts when this ends
+                      {isSleepBlock(editing) && (
+                        <span className="block">{formatSleepBlockTimes(editing)}</span>
+                      )}
                     </span>
                   </label>
                 </div>
