@@ -31,6 +31,7 @@ import {
   getBlocksForDate,
   getCurrentBlock,
   getPlanUpcomingBlocks,
+  parseDateKey,
   UPCOMING_LIMIT,
 } from '../lib/dates'
 import type { ActivityCategory, Mood } from '../types'
@@ -43,6 +44,7 @@ export function DashboardPage() {
     state,
     todayKey,
     todayLog,
+    getLog,
     toggleBlockComplete,
     toggleTaskToday,
     addTask,
@@ -55,13 +57,20 @@ export function DashboardPage() {
   const now = new Date()
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
 
+  const planViewKey = state.planDateKey
+  const planViewDate = useMemo(() => parseDateKey(planViewKey), [planViewKey])
+  const planIsToday = planViewKey === todayKey
+
   const todayBlocks = useMemo(
     () => getBlocksForDate(state.timeBlocks, now),
     [state.timeBlocks, todayKey],
   )
   const currentBlock = getCurrentBlock(state.timeBlocks, now)
-  const planLog = todayLog
-  const planDayBlocks = todayBlocks
+  const planLog = getLog(planViewKey)
+  const planDayBlocks = useMemo(
+    () => getBlocksForDate(state.timeBlocks, planViewDate),
+    [state.timeBlocks, planViewDate],
+  )
   const dailyPlan = getDailyPlan(planLog)
   const planEntries = useMemo(
     () => buildPlanDisplayEntries(planLog, planDayBlocks),
@@ -71,10 +80,10 @@ export function DashboardPage() {
     () =>
       getHomePlanDisplayEntries(planEntries, {
         limit: UPCOMING_LIMIT,
-        isToday: true,
+        isToday: planIsToday,
         nowMinutes: now.getHours() * 60 + now.getMinutes(),
       }),
-    [planEntries, clockTick],
+    [planEntries, planIsToday, clockTick],
   )
   const upcoming = useMemo(
     () =>
@@ -82,13 +91,20 @@ export function DashboardPage() {
         ? []
         : getPlanUpcomingBlocks(
             state.timeBlocks,
-            now,
+            planViewDate,
             state.planFocusBlockId,
             UPCOMING_LIMIT,
             new Date(),
             planLog.completedBlockIds,
           ),
-    [state.timeBlocks, state.planFocusBlockId, planLog.completedBlockIds, dailyPlan.length, clockTick],
+    [
+      state.timeBlocks,
+      state.planFocusBlockId,
+      planLog.completedBlockIds,
+      dailyPlan.length,
+      planViewDate,
+      clockTick,
+    ],
   )
   const focusedBlock = state.planFocusBlockId
     ? state.timeBlocks.find((b) => b.id === state.planFocusBlockId)
@@ -131,11 +147,11 @@ export function DashboardPage() {
         setCelebrate({ show: true, label })
         awardXp(xpForCategory(category))
       }
-      updateDay(todayKey, {
+      updateDay(planViewKey, {
         dailyPlan: toggleCustomPlanItemDone(dailyPlan, itemId),
       })
     },
-    [awardXp, dailyPlan, todayKey, updateDay],
+    [awardXp, dailyPlan, planViewKey, updateDay],
   )
 
   const dismissCelebration = useCallback(() => setCelebrate({ show: false }), [])
@@ -275,8 +291,14 @@ export function DashboardPage() {
 
       {planEntries.length > 0 && (
         <Card>
-          <SectionTitle title="Timeline" subtitle="Your day at a glance" />
-          <TimelineDayView entries={planEntries} nowMinutes={nowMinutes} />
+          <SectionTitle
+            title="Timeline"
+            subtitle={planIsToday ? 'Your day at a glance' : `Plan for ${planViewDate.toLocaleDateString('en-NG', { weekday: 'short', month: 'short', day: 'numeric' })}`}
+          />
+          <TimelineDayView
+            entries={planEntries}
+            nowMinutes={planIsToday ? nowMinutes : 12 * 60}
+          />
         </Card>
       )}
 
@@ -290,7 +312,7 @@ export function DashboardPage() {
           title="Your plan"
           subtitle={
             dailyPlan.length > 0
-              ? `Next ${UPCOMING_LIMIT} · ${planSummarySubtitle(dailyPlan, todayKey, todayKey)}`
+              ? `Next ${UPCOMING_LIMIT} · ${planSummarySubtitle(dailyPlan, planViewKey, todayKey)}`
               : focusedBlock
                 ? `Next ${UPCOMING_LIMIT} · from ${focusedBlock.label}`
                 : `Next ${UPCOMING_LIMIT} · plan tonight after your last event`
@@ -306,7 +328,7 @@ export function DashboardPage() {
                     type="button"
                     onClick={() =>
                       handleCompleteBlock(
-                        todayKey,
+                        planViewKey,
                         entry.block.id,
                         entry.block.label,
                         entry.done,
@@ -386,7 +408,7 @@ export function DashboardPage() {
                   type="button"
                   onClick={() =>
                     handleCompleteBlock(
-                      todayKey,
+                      planViewKey,
                       block.id,
                       block.label,
                       planLog.completedBlockIds.includes(block.id),

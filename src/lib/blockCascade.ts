@@ -150,10 +150,13 @@ export function applyBlockCascadeOnDay(
 
   if (patch.startMinutes != null && idx > 0) {
     const prev = day[idx - 1]
-    const gap = merged.startMinutes - prev.startMinutes
-    if (gap >= MIN_BLOCK_DURATION) {
-      day[idx - 1] = { ...prev, durationMinutes: gap }
+    const minStart = prev.startMinutes + MIN_BLOCK_DURATION
+    if (merged.startMinutes < minStart) {
+      merged.startMinutes = clampDayMinutes(minStart)
+      day[idx] = merged
     }
+    const gap = merged.startMinutes - prev.startMinutes
+    day[idx - 1] = { ...prev, durationMinutes: gap }
   }
 
   for (let i = idx + 1; i < day.length; i++) {

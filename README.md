@@ -94,12 +94,31 @@ npm run build
 npm run preview
 ```
 
+## Spotify (full playlists & tracks)
+
+The **Focus** tab embed shows Spotify content in-page. Embeds are often **30-second previews** unless the visitor is logged into Spotify Premium in that browser.
+
+For **full playback inside Rhythm**, set up Spotify’s Web Playback SDK:
+
+1. [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) → **Create app**
+2. **Settings → Redirect URIs** (exact match):
+   - `http://localhost:5173/spotify/callback`
+   - `https://rhythm-tau.vercel.app/spotify/callback` (or your Vercel URL)
+3. Copy the **Client ID** into `.env`:
+   ```env
+   VITE_SPOTIFY_CLIENT_ID=your-client-id
+   ```
+4. Redeploy (or `npm run deploy:env` to sync to Vercel)
+5. In **Focus → Spotify**, tap **Connect Spotify (Premium)** and use **Play full playlist/track**
+
+Requires a **Spotify Premium** account. Supports playlist, album, track, artist, episode, and show links.
+
 ## Deploy
 
 ### Vercel (recommended)
 
 1. Connect the repo to Vercel
-2. Add all `VITE_FIREBASE_*` variables under **Project → Settings → Environment Variables**
+2. Add all `VITE_FIREBASE_*` variables (and optional `VITE_SPOTIFY_CLIENT_ID`) under **Project → Settings → Environment Variables**
 3. Redeploy after changing env vars
 
 ```bash

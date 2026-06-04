@@ -20,6 +20,7 @@ import { getMorningFlowStep } from './lib/wakeFlow'
 import { decodeSharePayload, importSharePayload } from './lib/shareRoutine'
 import { DashboardPage } from './pages/DashboardPage'
 import { FocusPage } from './pages/FocusPage'
+import { SpotifyCallbackPage } from './pages/SpotifyCallbackPage'
 import { HabitsPage } from './pages/HabitsPage'
 import { InsightsPage } from './pages/InsightsPage'
 import { SchedulePage } from './pages/SchedulePage'
@@ -157,6 +158,7 @@ export default function AuthenticatedApp() {
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/schedule" element={<SchedulePage />} />
                 <Route path="/focus" element={<FocusPage />} />
+                <Route path="/spotify/callback" element={<SpotifyCallbackPage />} />
                 <Route path="/habits" element={<HabitsPage />} />
                 <Route path="/insights" element={<InsightsPage testScheduledAt={testScheduledAt} />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
@@ -220,6 +222,7 @@ export default function AuthenticatedApp() {
 
         {eveningFlow === 'plan' && (
           <MorningPlanOverlay
+            key={`evening-plan-${tomorrowKey}`}
             planDate={tomorrowDate}
             blocks={tomorrowBlocks}
             initialPlan={getLog(tomorrowKey).dailyPlan ?? []}
@@ -228,7 +231,7 @@ export default function AuthenticatedApp() {
             onContinue={(items) => {
               updateDay(tomorrowKey, { dailyPlan: items })
               updateDay(todayKey, { eveningPlanPrompt: 'planned' })
-              setPlanDate(todayKey)
+              setPlanDate(tomorrowKey)
               const firstBlock = items.find((item) => item.kind === 'block')
               setPlanFocus(tomorrowKey, firstBlock?.blockId ?? null)
               showEveningCalendar()

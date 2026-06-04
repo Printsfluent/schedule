@@ -21,7 +21,7 @@ import {
 } from '../lib/sleepSchedule'
 import { burnoutWarning, scheduledMinutesForDay } from '../lib/burnout'
 import { CATEGORY_COLORS, CATEGORY_LABELS, type ActivityCategory, type Recurring, type TimeBlock } from '../types'
-import { useStore } from '../store/useStore'
+import { getAppState, useStore } from '../store/useStore'
 
 export function SchedulePage() {
   const {
@@ -97,9 +97,10 @@ export function SchedulePage() {
 
   const syncPlanForBlock = useCallback(
     (block: TimeBlock) => {
-      const plan = dayLog.dailyPlan ?? []
+      const { timeBlocks, days } = getAppState()
+      const plan = days[dateKey]?.dailyPlan ?? []
       if (!plan.some((item) => item.kind === 'block' && item.blockId === block.id)) return
-      const fresh = getBlocksForDate(state.timeBlocks, selectedDate).find((b) => b.id === block.id)
+      const fresh = getBlocksForDate(timeBlocks, selectedDate).find((b) => b.id === block.id)
       updateDay(dateKey, {
         dailyPlan: syncPlanItemsForBlock(plan, block.id, {
           label: block.label,
@@ -109,13 +110,14 @@ export function SchedulePage() {
         }),
       })
     },
-    [dateKey, dayLog.dailyPlan, selectedDate, state.timeBlocks, updateDay],
+    [dateKey, selectedDate, updateDay],
   )
 
   const applyBlockEdit = useCallback(
     (block: TimeBlock, patch?: Partial<TimeBlock>) => {
+      const merged = patch ? { ...block, ...patch } : block
       updateTimeBlock(block.id, patch ?? block, dateKey)
-      syncPlanForBlock(block)
+      syncPlanForBlock(merged)
     },
     [dateKey, syncPlanForBlock, updateTimeBlock],
   )

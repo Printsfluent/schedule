@@ -499,8 +499,12 @@ export function useStore() {
             : s.timeBlocks.map((b) => (b.id === blockId ? { ...b, ...patch } : b))
         let days = s.days
         const refreshKeys = new Set<string>()
-        if (forDateKey) refreshKeys.add(forDateKey)
-        refreshKeys.add(formatDateKey(new Date()))
+        const calendarToday = formatDateKey(new Date())
+        if (forDateKey) {
+          refreshKeys.add(forDateKey)
+        } else {
+          refreshKeys.add(calendarToday)
+        }
         for (const refreshKey of refreshKeys) {
           const log = days[refreshKey]
           const plan = log?.dailyPlan
