@@ -105,6 +105,33 @@ export function getDailyPlan(log: DayLog | undefined): DayPlanItem[] {
   return sortPlanByTime(log?.dailyPlan ?? [])
 }
 
+/** True when the user explicitly picked items (evening/morning planner), not the recurring fallback. */
+export function hasUserPickedPlan(log: DayLog | undefined): boolean {
+  return (log?.dailyPlan?.length ?? 0) > 0
+}
+
+/** Recurring weekday/weekend blocks as plan-shaped items for display when nothing was picked. */
+export function buildRecurringPlanItems(blocks: TimeBlock[]): DayPlanItem[] {
+  return sortPlanByTime(
+    blocks.map((block) => ({
+      id: `recurring-${block.id}`,
+      kind: 'block' as const,
+      blockId: block.id,
+      label: block.label,
+      category: block.category,
+      startMinutes: block.startMinutes,
+      durationMinutes: block.durationMinutes,
+    })),
+  )
+}
+
+/** Picked plan for the day, or recurring schedule when the user skipped planning the night before. */
+export function getEffectivePlan(log: DayLog | undefined, blocks: TimeBlock[]): DayPlanItem[] {
+  const picked = getDailyPlan(log)
+  if (picked.length > 0) return picked
+  return buildRecurringPlanItems(blocks)
+}
+
 export function cartHasBlock(cart: DayPlanItem[], blockId: string) {
   return cart.some((item) => item.kind === 'block' && item.blockId === blockId)
 }
@@ -184,7 +211,7 @@ export function buildPlanDisplayEntries(
   log: DayLog | undefined,
   blocks: TimeBlock[],
 ): PlanDisplayEntry[] {
-  const plan = repairOverlappingPlanTimes(getDailyPlan(log))
+  const plan = repairOverlappingPlanTimes(getEffectivePlan(log, blocks))
   if (plan.length === 0) return []
 
   const blockMap = new Map(blocks.map((b) => [b.id, b]))
@@ -264,19 +291,35 @@ export function isDayFullyComplete(
   forDate: Date,
 ): boolean {
   const dayBlocks = getBlocksForDate(timeBlocks, forDate)
-  const plan = getDailyPlan(log)
-
-  if (plan.length > 0) {
-    const entries = buildPlanDisplayEntries(log, dayBlocks)
-    return entries.length > 0 && entries.every((entry) => entry.done)
-  }
-
-  if (dayBlocks.length === 0) return false
-  const completed = new Set(log?.completedBlockIds ?? [])
-  return dayBlocks.every((block) => completed.has(block.id))
+  const entries = buildPlanDisplayEntries(log, dayBlocks)
+  return entries.length > 0 && entries.every((entry) => entry.done)
 }
 
-/** Home "Your plan" — next incomplete items only, up to 5. */
+/** Slice of the day's picked plan — same ordering as Schedule timeline. */
+export function getPlanListSlice(
+  entries: PlanDisplayEntry[],
+  options: {
+    limit?: number
+    isToday?: boolean
+    nowMinutes?: number
+    /** When true, only items still in progress or upcoming (default for home "up next"). */
+    upcomingOnly?: boolean
+  } = {},
+): PlanDisplayEntry[] {
+  const limit = options.limit ?? UPCOMING_LIMIT
+  let list = [...entries]
+
+  if (options.upcomingOnly !== false) {
+    list = list.filter((entry) => !entry.done)
+    if (options.isToday && options.nowMinutes != null) {
+      list = list.filter((entry) => entry.startMinutes + entry.durationMinutes > options.nowMinutes!)
+    }
+  }
+
+  return list.slice(0, limit)
+}
+
+/** Home "Your plan" — next incomplete items from the user's picked plan. */
 export function getHomePlanDisplayEntries(
   entries: PlanDisplayEntry[],
   options: {
@@ -285,14 +328,7 @@ export function getHomePlanDisplayEntries(
     nowMinutes?: number
   } = {},
 ): PlanDisplayEntry[] {
-  const limit = options.limit ?? UPCOMING_LIMIT
-  let list = entries.filter((entry) => !entry.done)
-
-  if (options.isToday && options.nowMinutes != null) {
-    list = list.filter((entry) => entry.startMinutes + entry.durationMinutes > options.nowMinutes!)
-  }
-
-  return list.slice(0, limit)
+  return getPlanListSlice(entries, { ...options, upcomingOnly: true })
 }
 
 export function toggleCustomPlanItemDone(plan: DayPlanItem[], planItemId: string): DayPlanItem[] {
@@ -342,10 +378,23 @@ export function planTimedItemsForCalendar(
   return results.sort((a, b) => a.startMinutes - b.startMinutes)
 }
 
-export function planSummarySubtitle(plan: DayPlanItem[], dateKey: string, todayKey: string): string {
-  if (plan.length === 0) return 'Add items in your morning plan'
-  if (dateKey !== todayKey) return `${plan.length} picked for this day`
-  return `${plan.length} in your plan today`
+export function planSummarySubtitle(
+  log: DayLog | undefined,
+  blocks: TimeBlock[],
+  dateKey: string,
+  todayKey: string,
+): string {
+  const entries = buildPlanDisplayEntries(log, blocks)
+  if (entries.length === 0) return 'Add blocks in Schedule'
+  const picked = hasUserPickedPlan(log)
+  const count = entries.length
+  if (!picked) {
+    return dateKey === todayKey
+      ? `${count} from weekly schedule`
+      : `${count} from weekly schedule`
+  }
+  if (dateKey !== todayKey) return `${count} picked for this day`
+  return `${count} picked for today`
 }
 
 export function formatPlanItemMeta(entry: PlanDisplayEntry): string {

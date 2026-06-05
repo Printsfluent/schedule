@@ -1,5 +1,5 @@
 import type { DayLog, TimeBlock } from '../types'
-import { buildPlanDisplayEntries } from './dailyPlan'
+import { buildPlanDisplayEntries, hasUserPickedPlan } from './dailyPlan'
 import { formatTime, getBlocksForDate } from './dates'
 
 export type ScheduleConflict = {
@@ -15,6 +15,7 @@ export function detectPlanConflicts(
   timeBlocks: TimeBlock[],
   forDate: Date,
 ): ScheduleConflict[] {
+  if (!hasUserPickedPlan(log)) return []
   const dayBlocks = getBlocksForDate(timeBlocks, forDate)
   const entries = buildPlanDisplayEntries(log, dayBlocks)
   if (entries.length < 2) return []

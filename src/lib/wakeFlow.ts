@@ -44,7 +44,7 @@ export function canFireReminder(
   return isDayStarted(log)
 }
 
-/** Next step in the post-sleep morning flow, or null when done. Planning happens in the evening only. */
+/** Next step in the post-sleep morning flow, or null when done. */
 export function getMorningFlowStep(
   todayKey: string,
   log: DayLog | undefined,

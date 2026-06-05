@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
+import { MorningPlanOverlay } from '../components/MorningPlanOverlay'
 import { PageHeader } from '../components/layout/Shell'
 import { DurationAdjustInput, TimeAdjustInput } from '../components/PlanTimeControls'
+import { PlanDayEntriesList } from '../components/PlanDayEntriesList'
 import { TimelineDayView } from '../components/TimelineDayView'
 import {
   defaultNewBlockForDay,
@@ -15,7 +17,14 @@ import {
 } from '../lib/dates'
 import { formatSleepBlockTimes, getRawBlocksForDate } from '../lib/blockCascade'
 import { createId } from '../lib/id'
-import { buildPlanDisplayEntries, getDailyPlan, syncPlanItemsForBlock } from '../lib/dailyPlan'
+import {
+  buildPlanDisplayEntries,
+  buildRecurringPlanItems,
+  getDailyPlan,
+  hasUserPickedPlan,
+  syncPlanItemsForBlock,
+  toggleCustomPlanItemDone,
+} from '../lib/dailyPlan'
 import {
   isSleepBlock,
 } from '../lib/sleepSchedule'
@@ -40,9 +49,11 @@ export function SchedulePage() {
   } = useStore()
   const selectedDate = useMemo(() => parseDateKey(state.planDateKey), [state.planDateKey])
   const [editing, setEditing] = useState<TimeBlock | null>(null)
+  const [editingPlan, setEditingPlan] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
   const dateKey = state.planDateKey
   const dayLog = getLog(dateKey)
+  const dailyPlan = getDailyPlan(dayLog)
   const focusBlockId = state.planFocusBlockId
 
   const dayBlocks = useMemo(
@@ -58,7 +69,8 @@ export function SchedulePage() {
     [dayLog, dayBlocks],
   )
   const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes()
-  const hasPlan = getDailyPlan(dayLog).length > 0
+  const planIsPicked = hasUserPickedPlan(dayLog)
+  const hasDaySchedule = planEntries.length > 0
   const burnout = burnoutWarning(scheduledMinutesForDay(dayLog, dayBlocks))
   const conflicts = useMemo(
     () => detectPlanConflicts(dayLog, state.timeBlocks, selectedDate),
@@ -189,7 +201,7 @@ export function SchedulePage() {
           <button type="button" onClick={() => shiftDay(1)} className="rounded-xl bg-inset px-3 py-2 text-sm">→</button>
         </div>
 
-        {hasPlan && (
+        {hasDaySchedule && (
           <TimelineDayView entries={planEntries} nowMinutes={dateKey === todayKey ? nowMinutes : 12 * 60} />
         )}
 
@@ -210,10 +222,51 @@ export function SchedulePage() {
           </div>
         )}
 
+        {hasDaySchedule && (
+          <>
+            <p className="text-xs text-faint">
+              {planIsPicked
+                ? 'Picked last night · tap to mark done'
+                : 'Weekly schedule · plan tonight to customize tomorrow'}
+            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">
+                {planIsPicked ? 'Your picked plan' : 'Today from weekly schedule'}
+              </p>
+              {planIsPicked && (
+                <button
+                  type="button"
+                  onClick={() => setEditingPlan(true)}
+                  className="text-xs font-medium text-accent"
+                >
+                  Edit plan
+                </button>
+              )}
+            </div>
+            <PlanDayEntriesList
+              entries={planEntries}
+              nowMinutes={dateKey === todayKey ? nowMinutes : undefined}
+              isToday={dateKey === todayKey}
+              onCompleteBlock={(blockId, _label, _done) => toggleBlockComplete(dateKey, blockId)}
+              onCompleteCustom={
+                planIsPicked
+                  ? (itemId, _label, _category, _done) => {
+                      updateDay(dateKey, {
+                        dailyPlan: toggleCustomPlanItemDone(dailyPlan, itemId),
+                      })
+                    }
+                  : () => {}
+              }
+            />
+          </>
+        )}
+
+        {!planIsPicked && (
+        <>
         <p className="text-xs text-faint">
           Editing start or duration updates the next blocks automatically · use arrows in the editor
         </p>
-
+        <p className="text-sm font-semibold">Weekly schedule blocks</p>
         <div className="space-y-2">
           {dayBlocks.map((block, i) => {
             const done = dayLog.completedBlockIds.includes(block.id)
@@ -318,7 +371,27 @@ export function SchedulePage() {
         >
           + Add time block
         </button>
+        </>
+        )}
       </div>
+
+      {editingPlan && (
+        <MorningPlanOverlay
+          key={`schedule-plan-${dateKey}`}
+          variant="tomorrow"
+          planDate={selectedDate}
+          blocks={dayBlocks}
+          initialPlan={dailyPlan.length > 0 ? dailyPlan : buildRecurringPlanItems(dayBlocks)}
+          scheduleMode={state.settings.scheduleMode}
+          realisticMode={state.settings.realisticMode}
+          onContinue={(items) => {
+            updateDay(dateKey, { dailyPlan: items, morningPlanDone: true })
+            setEditingPlan(false)
+            const firstBlock = items.find((item) => item.kind === 'block')
+            if (firstBlock?.kind === 'block') setPlanFocus(dateKey, firstBlock.blockId ?? null)
+          }}
+        />
+      )}
 
       {editing && (
         <div

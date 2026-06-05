@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { CompletionCelebration } from '../components/CompletionCelebration'
+import { PlanDayEntriesList } from '../components/PlanDayEntriesList'
 import { TimelineDayView } from '../components/TimelineDayView'
 import { Card, SectionTitle } from '../components/ui/Card'
 import { MoodSelector } from '../components/ui/MoodSelector'
@@ -20,23 +21,20 @@ import { computeTodayProductivityScore, minutesRemainingInDay } from '../lib/pro
 import { burnoutWarning, scheduledMinutesForDay } from '../lib/burnout'
 import {
   buildPlanDisplayEntries,
-  formatPlanItemMeta,
   getDailyPlan,
   getHomePlanDisplayEntries,
+  hasUserPickedPlan,
   planSummarySubtitle,
   toggleCustomPlanItemDone,
 } from '../lib/dailyPlan'
 import {
   formatDuration,
-  formatTime,
   getBlocksForDate,
   getCurrentBlock,
-  getPlanUpcomingBlocks,
   parseDateKey,
   UPCOMING_LIMIT,
 } from '../lib/dates'
 import type { ActivityCategory, Mood } from '../types'
-import { CATEGORY_COLORS } from '../types'
 import { useStore } from '../store/useStore'
 import { xpForCategory } from '../lib/gamification'
 
@@ -73,6 +71,7 @@ export function DashboardPage() {
     [state.timeBlocks, planViewDate],
   )
   const dailyPlan = getDailyPlan(planLog)
+  const planIsPicked = hasUserPickedPlan(planLog)
   const planEntries = useMemo(
     () => buildPlanDisplayEntries(planLog, planDayBlocks),
     [planLog, planDayBlocks],
@@ -86,30 +85,6 @@ export function DashboardPage() {
       }),
     [planEntries, planIsToday, clockTick],
   )
-  const upcoming = useMemo(
-    () =>
-      dailyPlan.length > 0
-        ? []
-        : getPlanUpcomingBlocks(
-            state.timeBlocks,
-            planViewDate,
-            state.planFocusBlockId,
-            UPCOMING_LIMIT,
-            new Date(),
-            planLog.completedBlockIds,
-          ),
-    [
-      state.timeBlocks,
-      state.planFocusBlockId,
-      planLog.completedBlockIds,
-      dailyPlan.length,
-      planViewDate,
-      clockTick,
-    ],
-  )
-  const focusedBlock = state.planFocusBlockId
-    ? state.timeBlocks.find((b) => b.id === state.planFocusBlockId)
-    : null
   const openTasks = state.tasks.filter((t) => !t.done)
   const activeTask = openTasks[0]
 
@@ -311,7 +286,15 @@ export function DashboardPage() {
         <Card>
           <SectionTitle
             title="Timeline"
-            subtitle={planIsToday ? 'Your day at a glance' : `Plan for ${planViewDate.toLocaleDateString('en-NG', { weekday: 'short', month: 'short', day: 'numeric' })}`}
+            subtitle={
+              planIsPicked
+                ? planIsToday
+                  ? 'Your picked plan today'
+                  : `Picked plan for ${planViewDate.toLocaleDateString('en-NG', { weekday: 'short', month: 'short', day: 'numeric' })}`
+                : planIsToday
+                  ? 'Weekly schedule for today'
+                  : `Weekly schedule for ${planViewDate.toLocaleDateString('en-NG', { weekday: 'short', month: 'short', day: 'numeric' })}`
+            }
           />
           <TimelineDayView
             entries={planEntries}
@@ -329,132 +312,34 @@ export function DashboardPage() {
         <SectionTitle
           title="Your plan"
           subtitle={
-            dailyPlan.length > 0
-              ? `Next ${UPCOMING_LIMIT} · ${planSummarySubtitle(dailyPlan, planViewKey, todayKey)}`
-              : focusedBlock
-                ? `Next ${UPCOMING_LIMIT} · from ${focusedBlock.label}`
-                : `Next ${UPCOMING_LIMIT} · plan tonight after your last event`
+            planEntries.length > 0
+              ? `Next ${UPCOMING_LIMIT} · ${planSummarySubtitle(planLog, planDayBlocks, planViewKey, todayKey)}`
+              : 'Plan tonight or add blocks in Schedule'
           }
         />
         {visiblePlanEntries.length > 0 ? (
-          <div className="space-y-2">
-            {visiblePlanEntries.map((entry) => {
-              if (entry.kind === 'block') {
-                return (
-                  <button
-                    key={entry.planItemId}
-                    type="button"
-                    onClick={() =>
-                      handleCompleteBlock(
-                        planViewKey,
-                        entry.block.id,
-                        entry.block.label,
-                        entry.done,
-                      )
-                    }
-                    className="flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-all active:scale-[0.98]"
-                    style={{ background: `${CATEGORY_COLORS[entry.block.category]}12` }}
-                  >
-                    <div
-                      className="size-2.5 shrink-0 rounded-full"
-                      style={{ background: CATEGORY_COLORS[entry.block.category] }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{entry.block.label}</div>
-                      <div className="text-xs text-faint">{formatPlanItemMeta(entry)}</div>
-                    </div>
-                    <div
-                      className="size-5 shrink-0 rounded-full border-2 transition-all"
-                      style={{
-                        borderColor: entry.done ? CATEGORY_COLORS[entry.block.category] : 'rgba(255,255,255,0.15)',
-                        background: entry.done ? CATEGORY_COLORS[entry.block.category] : 'transparent',
-                      }}
-                    />
-                  </button>
-                )
-              }
-
-              return (
-                <button
-                  key={entry.item.id}
-                  type="button"
-                  onClick={() =>
-                    handleCompleteCustom(entry.item.id, entry.item.label, entry.item.category, entry.done)
-                  }
-                  className="flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-all active:scale-[0.98]"
-                  style={{ background: `${CATEGORY_COLORS[entry.item.category]}12` }}
-                >
-                  <div
-                    className="size-2.5 shrink-0 rounded-full"
-                    style={{ background: CATEGORY_COLORS[entry.item.category] }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{entry.item.label}</div>
-                    <div className="text-xs text-faint">{formatPlanItemMeta(entry)}</div>
-                  </div>
-                  <div
-                    className="size-5 shrink-0 rounded-full border-2 transition-all"
-                    style={{
-                      borderColor: entry.done ? CATEGORY_COLORS[entry.item.category] : 'rgba(255,255,255,0.15)',
-                      background: entry.done ? CATEGORY_COLORS[entry.item.category] : 'transparent',
-                    }}
-                  />
-                </button>
-              )
-            })}
-          </div>
-        ) : upcoming.length === 0 ? (
+          <PlanDayEntriesList
+            entries={visiblePlanEntries}
+            nowMinutes={planIsToday ? nowMinutes : undefined}
+            isToday={planIsToday}
+            onCompleteBlock={(blockId, label, done) =>
+              handleCompleteBlock(planViewKey, blockId, label, done)
+            }
+            onCompleteCustom={planIsPicked ? handleCompleteCustom : () => {}}
+          />
+        ) : (
           <p className="text-sm text-subtle">
-            {dailyPlan.length > 0 ? (
+            {planEntries.length > 0 ? (
               'All done for now — nice work.'
             ) : (
               <>
-                No blocks left.{' '}
+                Nothing scheduled.{' '}
                 <Link to="/schedule" className="text-accent">
-                  Pick one in Plan →
+                  Set up in Plan →
                 </Link>
               </>
             )}
           </p>
-        ) : (
-          <div className="space-y-2">
-            {upcoming.map((block) => {
-              const isFocused = block.id === state.planFocusBlockId
-              return (
-                <button
-                  key={block.id}
-                  type="button"
-                  onClick={() =>
-                    handleCompleteBlock(
-                      planViewKey,
-                      block.id,
-                      block.label,
-                      planLog.completedBlockIds.includes(block.id),
-                    )
-                  }
-                  className="flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-all active:scale-[0.98]"
-                  style={{
-                    background: isFocused ? `${CATEGORY_COLORS[block.category]}12` : 'rgba(255,255,255,0.03)',
-                    boxShadow: isFocused ? `inset 0 0 0 1px ${CATEGORY_COLORS[block.category]}40` : undefined,
-                  }}
-                >
-                  <div
-                    className="size-2.5 shrink-0 rounded-full"
-                    style={{ background: CATEGORY_COLORS[block.category] }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{block.label}</div>
-                    <div className="text-xs text-faint">
-                      {formatTime(block.startMinutes)} · {formatDuration(block.durationMinutes)}
-                    </div>
-                  </div>
-                  <div
-                    className="size-5 shrink-0 rounded-full border-2 border-[rgba(255,255,255,0.15)]"
-                  />
-                </button>
-              )
-            })}
-          </div>
         )}
         <Link
           to="/schedule"

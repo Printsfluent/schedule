@@ -25,6 +25,8 @@ interface Props {
   initialPlan: DayPlanItem[]
   scheduleMode: ScheduleMode
   realisticMode: boolean
+  /** Evening flow targets tomorrow; morning flow fills today when empty. */
+  variant?: 'today' | 'tomorrow'
   onContinue: (items: DayPlanItem[]) => void
 }
 
@@ -39,7 +41,16 @@ const TEMPLATE_BUTTONS: { id: string; label: string; apply: (blocks: TimeBlock[]
   { id: 'night', label: 'Wind down', apply: (b) => buildNightRoutineTemplate(b) },
 ]
 
-export function MorningPlanOverlay({ planDate, blocks, initialPlan, scheduleMode, realisticMode, onContinue }: Props) {
+export function MorningPlanOverlay({
+  planDate,
+  blocks,
+  initialPlan,
+  scheduleMode,
+  realisticMode,
+  variant = 'tomorrow',
+  onContinue,
+}: Props) {
+  const isToday = variant === 'today'
   const [cart, setCart] = useState<DayPlanItem[]>(() => sortPlanByTime(initialPlan))
   const [customLabel, setCustomLabel] = useState('')
   const [customCategory, setCustomCategory] = useState<ActivityCategory>('life')
@@ -90,8 +101,12 @@ export function MorningPlanOverlay({ planDate, blocks, initialPlan, scheduleMode
       <div className="shrink-0 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-3">
         <div className="mx-auto max-w-sm text-center">
           <div className="text-4xl">🛒</div>
-          <p className="mt-3 text-sm font-medium text-accent">Plan tomorrow</p>
-          <h1 className="mt-1 text-xl font-bold tracking-tight">Add to tomorrow&apos;s plan</h1>
+          <p className="mt-3 text-sm font-medium text-accent">
+            {isToday ? "Plan today" : 'Plan tomorrow'}
+          </p>
+          <h1 className="mt-1 text-xl font-bold tracking-tight">
+            {isToday ? "Build today's plan" : "Add to tomorrow's plan"}
+          </h1>
           <p className="mt-1 text-xs text-subtle">
             {formatDisplayDate(planDate)} · later items start when the previous one ends
           </p>
