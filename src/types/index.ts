@@ -128,6 +128,16 @@ export interface NotificationSettings {
   syncDeviceTime: boolean
 }
 
+export interface OnboardingPreferences {
+  wakeMinutes: number
+  sleepMinutes: number
+  workStartMinutes: number
+  workEndMinutes: number
+  studyHoursDaily: number
+  gymDaysPerWeek: number
+  priorities: ActivityCategory[]
+}
+
 export interface AppSettings {
   theme: ThemePreference
   focusTimers: FocusTimers
@@ -141,6 +151,7 @@ export interface AppSettings {
   persistentReminders: boolean
   /** Inclusive date (YYYY-MM-DD); gentle streak only counts this day onward. Null = all history. */
   gentleStreakSince: string | null
+  onboardingPreferences?: OnboardingPreferences
 }
 
 export interface AppState {
@@ -152,6 +163,8 @@ export interface AppState {
   settings: AppSettings
   gamification: Gamification
   onboardingDone: boolean
+  /** Achievement ids unlocked at least once */
+  unlockedAchievements?: string[]
   planDateKey: string
   planFocusBlockId: string | null
 }

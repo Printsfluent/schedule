@@ -16,6 +16,7 @@ import {
   randomMessageIndex,
 } from '../data/moods'
 import { computeConsistencyStats, computeDayProgress } from '../lib/consistency'
+import { computeTodayProductivityScore, minutesRemainingInDay } from '../lib/productivityScore'
 import { burnoutWarning, scheduledMinutesForDay } from '../lib/burnout'
 import {
   buildPlanDisplayEntries,
@@ -113,6 +114,8 @@ export function DashboardPage() {
   const activeTask = openTasks[0]
 
   const progress = computeDayProgress(todayLog, state.timeBlocks, now)
+  const productivityScore = computeTodayProductivityScore(todayLog, state.timeBlocks, now)
+  const minutesLeft = minutesRemainingInDay(now)
 
   const stats = computeConsistencyStats(
     state.days,
@@ -235,6 +238,21 @@ export function DashboardPage() {
           </div>
         </div>
       </Card>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-inset p-3 text-center">
+          <div className="text-[10px] uppercase tracking-wide text-faint">Productivity</div>
+          <div className="mt-1 text-xl font-bold tabular-nums">{productivityScore}</div>
+        </div>
+        <div className="rounded-2xl bg-inset p-3 text-center">
+          <div className="text-[10px] uppercase tracking-wide text-faint">Time left</div>
+          <div className="mt-1 text-xl font-bold tabular-nums">{formatDuration(minutesLeft)}</div>
+        </div>
+        <div className="rounded-2xl bg-inset p-3 text-center">
+          <div className="text-[10px] uppercase tracking-wide text-faint">Tasks</div>
+          <div className="mt-1 text-xl font-bold tabular-nums">{openTasks.length}</div>
+        </div>
+      </div>
 
       <Card
         glow={displayMessage.accent}

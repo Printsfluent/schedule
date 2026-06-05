@@ -22,10 +22,11 @@ export function resolvePlanItemTime(
   item: DayPlanItem,
   block?: TimeBlock,
 ): { startMinutes: number; durationMinutes: number } {
-  return {
-    startMinutes: item.startMinutes ?? block?.startMinutes ?? 9 * 60,
-    durationMinutes: item.durationMinutes ?? block?.durationMinutes ?? 30,
-  }
+  const startMinutes =
+    item.startMinutes != null ? item.startMinutes : (block?.startMinutes ?? 9 * 60)
+  const durationMinutes =
+    item.durationMinutes != null ? item.durationMinutes : (block?.durationMinutes ?? 30)
+  return { startMinutes, durationMinutes }
 }
 
 export function sortPlanByTime(plan: DayPlanItem[]): DayPlanItem[] {
@@ -120,7 +121,7 @@ export function syncPlanItemsForBlock(
   )
 }
 
-/** Pull latest cascaded block times into the plan, then re-chain plan items. */
+/** Keep plan item times as the user picked; only sync block label/category from the schedule. */
 export function refreshBlockTimesInPlan(
   plan: DayPlanItem[],
   timeBlocks: TimeBlock[],
@@ -135,11 +136,9 @@ export function refreshBlockTimesInPlan(
     next = syncPlanItemsForBlock(next, block.id, {
       label: block.label,
       category: block.category,
-      startMinutes: block.startMinutes,
-      durationMinutes: block.durationMinutes,
     })
   }
-  return recascadeEntirePlan(next)
+  return sortPlanByTime(next)
 }
 
 export function updatePlanItemTime(
@@ -155,11 +154,37 @@ export function updatePlanItemTime(
   return cascadePlanFromIndex(ordered, idx)
 }
 
+/** Re-chain overlapping plan items using stored durations (fixes legacy schedule-sync corruption). */
+export function repairOverlappingPlanTimes(plan: DayPlanItem[]): DayPlanItem[] {
+  const sorted = sortPlanByTime(plan)
+  if (sorted.length <= 1) return sorted
+
+  let needsRepair = false
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1]
+    if (sorted[i].startMinutes < prev.startMinutes + prev.durationMinutes) {
+      needsRepair = true
+      break
+    }
+  }
+  if (!needsRepair) return sorted
+
+  const result = sorted.map((item) => ({ ...item }))
+  for (let i = 1; i < result.length; i++) {
+    const prev = result[i - 1]
+    result[i] = {
+      ...result[i],
+      startMinutes: clampDayMinutes(prev.startMinutes + prev.durationMinutes),
+    }
+  }
+  return result
+}
+
 export function buildPlanDisplayEntries(
   log: DayLog | undefined,
   blocks: TimeBlock[],
 ): PlanDisplayEntry[] {
-  const plan = getDailyPlan(log)
+  const plan = repairOverlappingPlanTimes(getDailyPlan(log))
   if (plan.length === 0) return []
 
   const blockMap = new Map(blocks.map((b) => [b.id, b]))
@@ -190,7 +215,46 @@ export function buildPlanDisplayEntries(
     }
   }
 
-  return entries
+  return entries.sort((a, b) => a.startMinutes - b.startMinutes)
+}
+
+export function timelineRangeForEntries(
+  entries: PlanDisplayEntry[],
+): { dayStart: number; dayEnd: number } {
+  const defaultStart = 6 * 60
+  const defaultEnd = 24 * 60
+  if (entries.length === 0) return { dayStart: defaultStart, dayEnd: defaultEnd }
+
+  const minStart = Math.min(...entries.map((e) => e.startMinutes))
+  const maxEnd = Math.max(...entries.map((e) => e.startMinutes + e.durationMinutes))
+  const pad = 60
+  const dayStart = Math.max(0, Math.floor((minStart - pad) / 60) * 60)
+  const dayEnd = Math.min(24 * 60, Math.max(defaultEnd, Math.ceil((maxEnd + pad) / 60) * 60))
+  return { dayStart, dayEnd }
+}
+
+export function assignTimelineLanes(
+  entries: PlanDisplayEntry[],
+): { entry: PlanDisplayEntry; lane: number; laneCount: number }[] {
+  const sorted = [...entries].sort((a, b) => a.startMinutes - b.startMinutes)
+  const laneEnds: number[] = []
+  const placed: { entry: PlanDisplayEntry; lane: number }[] = []
+
+  for (const entry of sorted) {
+    const start = entry.startMinutes
+    const end = start + entry.durationMinutes
+    let lane = laneEnds.findIndex((laneEnd) => laneEnd <= start)
+    if (lane === -1) {
+      lane = laneEnds.length
+      laneEnds.push(end)
+    } else {
+      laneEnds[lane] = end
+    }
+    placed.push({ entry, lane })
+  }
+
+  const laneCount = Math.max(1, laneEnds.length)
+  return placed.map((row) => ({ ...row, laneCount }))
 }
 
 /** True when every plan item or schedule block for the day is marked done. */

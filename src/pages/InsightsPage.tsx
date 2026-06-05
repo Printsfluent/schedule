@@ -7,7 +7,10 @@ import { AppAboutSummary } from '../components/AppAboutSummary'
 import { AccountPanel } from '../components/AccountPanel'
 import { ShareRoutinePanel } from '../components/ShareRoutinePanel'
 import { ThemeSettingsPanel } from '../components/ThemeSettingsPanel'
+import { AchievementsPanel } from '../components/AchievementsPanel'
+import { WeeklyGoalsPanel } from '../components/WeeklyGoalsPanel'
 import { BarChart, LineChart, StatGrid } from '../components/charts/Charts'
+import { balanceInsight, computeCategoryBalance, formatBalanceSubtitle } from '../lib/categoryBalance'
 import { Card, SectionTitle } from '../components/ui/Card'
 import { PageHeader } from '../components/layout/Shell'
 import { computeMonthStats, computeWeekStats } from '../lib/analytics'
@@ -24,6 +27,7 @@ import {
   formatTime,
   getBlocksForDate,
   getMonthDays,
+  getWeekKey,
   parseDateKey,
 } from '../lib/dates'
 import { useStore } from '../store/useStore'
@@ -35,7 +39,7 @@ interface InsightsPageProps {
 }
 
 export function InsightsPage({ testScheduledAt = null }: InsightsPageProps) {
-  const { state, todayKey, todayLog, setSleep, updateSettings, updateDay, importFriendRoutine } = useStore()
+  const { state, todayKey, todayLog, setSleep, updateSettings, updateDay, importFriendRoutine, updateWeeklyPlan } = useStore()
   const [tab, setTab] = useState<InsightsTab>('analytics')
   const [calMonth, setCalMonth] = useState(() => new Date())
   const now = new Date()
@@ -55,6 +59,22 @@ export function InsightsPage({ testScheduledAt = null }: InsightsPageProps) {
   const pet = petStage(consistency.gentleStreak)
   const idealActual = compareIdealVsActual(todayLog, todayBlocks)
   const burnout = burnoutWarning(scheduledMinutesForDay(todayLog, todayBlocks))
+  const categoryBalance = useMemo(
+    () => computeCategoryBalance(state.days, state.timeBlocks, now),
+    [state.days, state.timeBlocks],
+  )
+  const balanceTip = balanceInsight(categoryBalance)
+  const weekKey = getWeekKey(now)
+  const weeklyPlan = state.weeklyPlans[weekKey] ?? {
+    weekKey,
+    workFocus: '',
+    studyGoal: '',
+    healthGoal: '',
+    socialPlan: '',
+    restPlan: '',
+    notes: '',
+    items: [],
+  }
 
   const monthDays = getMonthDays(calMonth.getFullYear(), calMonth.getMonth())
 
@@ -103,6 +123,41 @@ export function InsightsPage({ testScheduledAt = null }: InsightsPageProps) {
                 { label: 'Recovery', value: String(weekStats.recoveryDays), sub: 'days' },
               ]}
             />
+
+            <Card>
+              <SectionTitle
+                title="Life balance"
+                subtitle={formatBalanceSubtitle(categoryBalance)}
+              />
+              {categoryBalance.length === 0 ? (
+                <p className="text-sm text-subtle">Plan a few days to see how your time splits across categories.</p>
+              ) : (
+                <>
+                  <BarChart
+                    data={categoryBalance.map((r) => ({
+                      label: r.label.slice(0, 4),
+                      value: r.minutes,
+                      color: r.color,
+                    }))}
+                  />
+                  {balanceTip && <p className="mt-3 text-xs text-subtle">{balanceTip}</p>}
+                </>
+              )}
+            </Card>
+
+            <Card>
+              <SectionTitle title="Weekly goals" subtitle="Career · health · learning · social · rest" />
+              <WeeklyGoalsPanel
+                weekKey={weekKey}
+                plan={weeklyPlan}
+                onChange={(patch) => updateWeeklyPlan(weekKey, patch)}
+              />
+            </Card>
+
+            <Card>
+              <SectionTitle title="Achievements" subtitle={`${(state.unlockedAchievements ?? []).length} unlocked`} />
+              <AchievementsPanel unlockedIds={state.unlockedAchievements ?? []} />
+            </Card>
 
             <Card glow="#c4a1ff">
               <SectionTitle title="Rhythm pet" subtitle={pet.label} />

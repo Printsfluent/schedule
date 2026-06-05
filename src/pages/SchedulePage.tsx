@@ -20,6 +20,7 @@ import {
   isSleepBlock,
 } from '../lib/sleepSchedule'
 import { burnoutWarning, scheduledMinutesForDay } from '../lib/burnout'
+import { detectPlanConflicts, formatConflictMessage } from '../lib/scheduleConflicts'
 import { CATEGORY_COLORS, CATEGORY_LABELS, type ActivityCategory, type Recurring, type TimeBlock } from '../types'
 import { getAppState, useStore } from '../store/useStore'
 
@@ -59,6 +60,10 @@ export function SchedulePage() {
   const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes()
   const hasPlan = getDailyPlan(dayLog).length > 0
   const burnout = burnoutWarning(scheduledMinutesForDay(dayLog, dayBlocks))
+  const conflicts = useMemo(
+    () => detectPlanConflicts(dayLog, state.timeBlocks, selectedDate),
+    [dayLog, state.timeBlocks, selectedDate],
+  )
 
   const shiftDay = (n: number) => {
     const d = new Date(selectedDate)
@@ -97,16 +102,13 @@ export function SchedulePage() {
 
   const syncPlanForBlock = useCallback(
     (block: TimeBlock) => {
-      const { timeBlocks, days } = getAppState()
+      const { days } = getAppState()
       const plan = days[dateKey]?.dailyPlan ?? []
       if (!plan.some((item) => item.kind === 'block' && item.blockId === block.id)) return
-      const fresh = getBlocksForDate(timeBlocks, selectedDate).find((b) => b.id === block.id)
       updateDay(dateKey, {
         dailyPlan: syncPlanItemsForBlock(plan, block.id, {
           label: block.label,
           category: block.category,
-          startMinutes: fresh?.startMinutes ?? block.startMinutes,
-          durationMinutes: fresh?.durationMinutes ?? block.durationMinutes,
         }),
       })
     },
@@ -189,6 +191,17 @@ export function SchedulePage() {
 
         {hasPlan && (
           <TimelineDayView entries={planEntries} nowMinutes={dateKey === todayKey ? nowMinutes : 12 * 60} />
+        )}
+
+        {conflicts.length > 0 && (
+          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200/90">
+            <p className="font-medium">Plan overlap</p>
+            <ul className="mt-1 space-y-1 text-xs">
+              {conflicts.slice(0, 3).map((c, i) => (
+                <li key={i}>{formatConflictMessage(c)}</li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {burnout && (

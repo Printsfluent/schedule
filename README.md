@@ -184,6 +184,22 @@ First-time setup: enable Firestore and deploy security rules — see [firebase/S
 
 Local data from before you signed in is copied into your account on first login on that device. **Reset app data** clears this device and updates your cloud copy for all devices.
 
+## Resetting all users (factory defaults + onboarding)
+
+There is **no Firebase admin button** in the repo. To reset **every user** on their **next app visit**:
+
+1. Open `src/lib/dataResetEpoch.ts`
+2. Bump `APP_DATA_RESET_EPOCH` (e.g. `0` → `1`)
+3. Deploy (`npm run deploy`)
+
+Each device wipes local data once, shows **onboarding** again, and **overwrites** that user’s Firestore copy on next sign-in (so other devices pick up the reset too).
+
+**Per-user only:** Insights → Settings → **Reset app data** (same effect for one account).
+
+**Re-login only (keeps data):** bump `AUTH_GATE_GENERATION` in `src/lib/auth/gateVersion.ts` — does **not** clear schedules.
+
+**Nuclear (Firebase Console):** delete documents under `users/{uid}/appdata/state` manually or via Admin SDK — only if you need server-side wipe without a deploy.
+
 ## Forcing every device to log in again
 
 Bump `AUTH_LOGIN_REQUIRED_EPOCH` in `src/lib/auth/gateVersion.ts` (same number as `AUTH_GATE_GENERATION`), commit, and deploy. On the next visit each device:

@@ -1,6 +1,7 @@
 import { doc, getDoc, onSnapshot, setDoc, type Unsubscribe } from 'firebase/firestore'
 import type { AppState } from '../../types'
 import { getFirestoreDb } from '../firebase'
+import { consumeForceCloudPushAfterReset } from '../dataResetEpoch'
 import {
   getAppState,
   replaceAppState,
@@ -99,8 +100,14 @@ export async function startAppStateSync(userId: string): Promise<void> {
 
   const snap = await getDoc(ref)
   const remote = snap.exists() ? (snap.data() as CloudDoc) : null
+  const forcePushAfterReset = consumeForceCloudPushAfterReset()
 
-  if (remote?.state && remote.updatedAt > localUpdatedAt) {
+  if (forcePushAfterReset) {
+    const updatedAt = Date.now()
+    ignoreRemoteUntil = updatedAt + REMOTE_IGNORE_MS
+    writeLocalUpdatedAt(userId, updatedAt)
+    await pushToCloud(userId, localState)
+  } else if (remote?.state && remote.updatedAt > localUpdatedAt) {
     applyRemoteState(userId, remote)
   } else if (remote?.state && remote.updatedAt === localUpdatedAt) {
     replaceAppState(remote.state)

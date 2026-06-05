@@ -10,12 +10,19 @@ import type {
   FocusTimers,
   Habit,
   Mood,
+  OnboardingPreferences,
   ScheduleMode,
   StudyBlocks,
   Task,
   TimeBlock,
   WeeklyPlan,
 } from '../types'
+import {
+  applyOnboardingToSchedule,
+  buildOnboardingDayPlan,
+} from '../lib/onboardingSchedule'
+import { computeUnlockedAchievements } from '../lib/achievements'
+import { computeWakeDelayMinutes } from '../lib/wakeDelay'
 import { applyBlockCascadeOnDay, cascadeEntireDay } from '../lib/blockCascade'
 import { refreshBlockTimesInPlan } from '../lib/dailyPlan'
 import { emptyDayLog, formatDateKey, getBlocksForDate, parseDateKey } from '../lib/dates'
@@ -85,7 +92,7 @@ function defaultState(): AppState {
     weeklyPlans: {},
     settings: defaultSettings(),
     gamification: defaultGamification(),
-    onboardingDone: true,
+    onboardingDone: false,
     planDateKey: formatDateKey(new Date()),
     planFocusBlockId: null,
   }
@@ -212,6 +219,8 @@ function migrate(raw: Partial<AppState>): AppState {
         ...defaultGamification(),
         ...(raw.gamification && typeof raw.gamification === 'object' ? raw.gamification : {}),
       },
+      onboardingDone: typeof raw.onboardingDone === 'boolean' ? raw.onboardingDone : true,
+      unlockedAchievements: Array.isArray(raw.unlockedAchievements) ? raw.unlockedAchievements : [],
     }
     return { ...migrated, days: resyncAllDays(migrated) }
   } catch {
@@ -441,7 +450,20 @@ export function useStore() {
   }, [])
 
   const setSleep = useCallback((dateKey: string, hours: number | null) => {
-    patchDay(dateKey, { sleepHours: hours, wakeCompleted: hours !== null ? true : undefined })
+    setState((s) => {
+      const log = s.days[dateKey] ?? emptyDayLog(dateKey)
+      const wakeDelayMinutes =
+        hours != null && s.settings.adaptiveScheduling
+          ? computeWakeDelayMinutes(new Date(), s.timeBlocks)
+          : log.wakeDelayMinutes
+      const next = enrichDayLog(s, dateKey, {
+        ...log,
+        sleepHours: hours,
+        wakeCompleted: hours !== null ? true : log.wakeCompleted,
+        wakeDelayMinutes: hours != null ? wakeDelayMinutes : log.wakeDelayMinutes,
+      })
+      return { ...s, days: { ...s.days, [dateKey]: next } }
+    })
   }, [])
 
   const completeWake = useCallback((dateKey: string) => {
@@ -646,6 +668,42 @@ export function useStore() {
     setState((s) => ({ ...s, planDateKey: dateKey, planFocusBlockId: blockId }))
   }, [])
 
+  const completeOnboarding = useCallback((prefs: OnboardingPreferences) => {
+    setState((s) => {
+      const timeBlocks = applyOnboardingToSchedule(s.timeBlocks, prefs)
+      const todayKey = formatDateKey(new Date())
+      const plan = buildOnboardingDayPlan(timeBlocks, prefs)
+      const log = s.days[todayKey] ?? emptyDayLog(todayKey)
+      const scheduleMode: ScheduleMode =
+        prefs.gymDaysPerWeek >= 4 ? 'gym' : prefs.studyHoursDaily >= 3 ? 'exam' : 'weekday'
+      return {
+        ...s,
+        timeBlocks,
+        onboardingDone: true,
+        unlockedAchievements: [...new Set([...(s.unlockedAchievements ?? []), 'onboarding'])],
+        settings: {
+          ...s.settings,
+          onboardingPreferences: prefs,
+          scheduleMode,
+        },
+        days: {
+          ...s.days,
+          [todayKey]: { ...log, dailyPlan: plan },
+        },
+      }
+    })
+  }, [])
+
+  const syncAchievements = useCallback(() => {
+    setState((s) => {
+      const todayKey = formatDateKey(new Date())
+      const next = computeUnlockedAchievements(s, todayKey)
+      const prev = s.unlockedAchievements ?? []
+      if (prev.length === next.length && prev.every((id) => next.includes(id))) return s
+      return { ...s, unlockedAchievements: next }
+    })
+  }, [])
+
   return {
     state: snap,
     todayKey,
@@ -675,6 +733,8 @@ export function useStore() {
     addHabit,
     setPlanDate,
     setPlanFocus,
+    completeOnboarding,
+    syncAchievements,
     awardXp,
     importFriendRoutine,
   }

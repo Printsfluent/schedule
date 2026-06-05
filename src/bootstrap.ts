@@ -1,3 +1,4 @@
+import { applyMandatoryDataReset } from './lib/dataResetEpoch'
 import { bootstrapAppUpdate } from './lib/appUpdate'
 import { redirectToLoginIfGuest } from './lib/auth/forceLoginGate'
 import {
@@ -13,6 +14,7 @@ import { deleteAllCaches, unregisterAllServiceWorkers } from './lib/unregisterSe
 export async function bootstrapApp(): Promise<void> {
   bootstrapBrowserCompat()
   bootstrapTheme()
+  applyMandatoryDataReset()
 
   if (import.meta.env.PROD && !import.meta.env.SSR) {
     const auth = getFirebaseAuth()

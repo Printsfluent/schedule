@@ -5,6 +5,7 @@ import { EndOfDayPlanPrompt } from './components/EndOfDayPlanPrompt'
 import { MorningCalendarOverlay } from './components/MorningCalendarOverlay'
 import { MorningPlanOverlay } from './components/MorningPlanOverlay'
 import { SleepFeedbackOverlay } from './components/SleepFeedbackOverlay'
+import { OnboardingOverlay } from './components/OnboardingOverlay'
 import { WakeAlarmOverlay } from './components/WakeAlarmOverlay'
 import { TabBar, AppHeader } from './components/layout/Shell'
 import { AlarmActionsContext } from './context/AlarmActionsContext'
@@ -38,7 +39,13 @@ export default function AuthenticatedApp() {
     setPlanDate,
     importFriendRoutine,
     getLog,
+    completeOnboarding,
+    syncAchievements,
   } = useStore()
+
+  useEffect(() => {
+    syncAchievements()
+  }, [state.days, state.gamification.totalXp, state.onboardingDone, syncAchievements])
   const {
     activeAlarm,
     showWakePopup,
@@ -269,6 +276,10 @@ export default function AuthenticatedApp() {
               setMorningCalendarPrompt(false)
             }}
           />
+        )}
+
+        {!state.onboardingDone && (
+          <OnboardingOverlay onComplete={completeOnboarding} />
         )}
       </div>
     </AlarmActionsContext.Provider>
