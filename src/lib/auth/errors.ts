@@ -18,7 +18,9 @@ export function formatAuthError(message: string, code?: string): string {
     case 'auth/operation-not-allowed':
       return 'This sign-in method is disabled in Firebase. Enable it under Authentication → Sign-in method.'
     case 'auth/popup-blocked':
-      return 'Pop-up blocked. Allow pop-ups for this site and try Google sign-in again.'
+      return 'Pop-up blocked. We will try redirecting you to Google — if nothing happens, allow pop-ups for this site.'
+    case 'auth/account-exists-with-different-credential':
+      return 'An account already exists with this email using email and password. Sign in with your password, or use the same method you signed up with.'
     case 'auth/user-disabled':
       return 'This account has been disabled.'
   }

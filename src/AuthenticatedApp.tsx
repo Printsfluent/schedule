@@ -115,15 +115,11 @@ export default function AuthenticatedApp() {
   const tomorrowKey = useMemo(() => getTomorrowKey(todayKey), [todayKey])
   const tomorrowDate = useMemo(() => parseDateKey(tomorrowKey), [tomorrowKey])
 
-  const tomorrowBlocks = useMemo(
-    () => getBlocksForDate(state.timeBlocks, tomorrowDate),
-    [state.timeBlocks, tomorrowDate],
-  )
-  const todayBlocks = useMemo(
-    () => getBlocksForDate(state.timeBlocks, parseDateKey(todayKey)),
-    [state.timeBlocks, todayKey],
-  )
   const todayDate = useMemo(() => parseDateKey(todayKey), [todayKey])
+  const todayBlocks = useMemo(
+    () => getBlocksForDate(state.timeBlocks, todayDate),
+    [state.timeBlocks, todayDate],
+  )
 
   const [morningCalendarPrompt, setMorningCalendarPrompt] = useState(false)
 
@@ -231,16 +227,13 @@ export default function AuthenticatedApp() {
           <MorningPlanOverlay
             key={`evening-plan-${tomorrowKey}`}
             planDate={tomorrowDate}
-            blocks={tomorrowBlocks}
             initialPlan={getLog(tomorrowKey).dailyPlan ?? []}
-            scheduleMode={state.settings.scheduleMode}
             realisticMode={state.settings.realisticMode}
             onContinue={(items) => {
               updateDay(tomorrowKey, { dailyPlan: items })
               updateDay(todayKey, { eveningPlanPrompt: 'planned' })
               setPlanDate(tomorrowKey)
-              const firstBlock = items.find((item) => item.kind === 'block')
-              setPlanFocus(tomorrowKey, firstBlock?.blockId ?? null)
+              setPlanFocus(tomorrowKey, null)
               showEveningCalendar()
             }}
           />

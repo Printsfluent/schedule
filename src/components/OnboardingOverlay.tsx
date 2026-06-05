@@ -167,7 +167,7 @@ export function OnboardingOverlay({ onComplete }: Props) {
                 Parse & apply
               </button>
               <p className="text-[10px] text-faint">
-                We&apos;ll generate a realistic weekday plan from your picks — you can edit everything later in Plan.
+                We&apos;ll start today from a sample plan based on your picks — plan each new day at night.
               </p>
             </>
           )}

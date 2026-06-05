@@ -32,7 +32,10 @@ export function shouldOfferEveningPlan(
   now: Date = new Date(),
 ): boolean {
   if (log?.eveningPlanPrompt === 'declined' || log?.eveningPlanPrompt === 'planned') return false
-  if (blocks.length === 0 && getDailyPlan(log).length === 0) return false
+  if (getDailyPlan(log).length === 0 && blocks.length === 0) {
+    const hour = now.getHours()
+    if (hour < 18) return false
+  }
   if (isDayFullyComplete(log, blocks, now)) return true
   return hasTodayPlanEnded(log, blocks, now)
 }

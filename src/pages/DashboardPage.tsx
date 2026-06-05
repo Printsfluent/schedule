@@ -23,7 +23,6 @@ import {
   buildPlanDisplayEntries,
   getDailyPlan,
   getHomePlanDisplayEntries,
-  hasUserPickedPlan,
   planSummarySubtitle,
   toggleCustomPlanItemDone,
 } from '../lib/dailyPlan'
@@ -71,7 +70,6 @@ export function DashboardPage() {
     [state.timeBlocks, planViewDate],
   )
   const dailyPlan = getDailyPlan(planLog)
-  const planIsPicked = hasUserPickedPlan(planLog)
   const planEntries = useMemo(
     () => buildPlanDisplayEntries(planLog, planDayBlocks),
     [planLog, planDayBlocks],
@@ -287,13 +285,9 @@ export function DashboardPage() {
           <SectionTitle
             title="Timeline"
             subtitle={
-              planIsPicked
-                ? planIsToday
-                  ? 'Your picked plan today'
-                  : `Picked plan for ${planViewDate.toLocaleDateString('en-NG', { weekday: 'short', month: 'short', day: 'numeric' })}`
-                : planIsToday
-                  ? 'Weekly schedule for today'
-                  : `Weekly schedule for ${planViewDate.toLocaleDateString('en-NG', { weekday: 'short', month: 'short', day: 'numeric' })}`
+              planIsToday
+                ? 'Your picked plan today'
+                : `Picked plan for ${planViewDate.toLocaleDateString('en-NG', { weekday: 'short', month: 'short', day: 'numeric' })}`
             }
           />
           <TimelineDayView
@@ -314,7 +308,7 @@ export function DashboardPage() {
           subtitle={
             planEntries.length > 0
               ? `Next ${UPCOMING_LIMIT} · ${planSummarySubtitle(planLog, planDayBlocks, planViewKey, todayKey)}`
-              : 'Plan tonight or add blocks in Schedule'
+              : 'Plan tonight to set tomorrow'
           }
         />
         {visiblePlanEntries.length > 0 ? (
@@ -325,7 +319,7 @@ export function DashboardPage() {
             onCompleteBlock={(blockId, label, done) =>
               handleCompleteBlock(planViewKey, blockId, label, done)
             }
-            onCompleteCustom={planIsPicked ? handleCompleteCustom : () => {}}
+            onCompleteCustom={handleCompleteCustom}
           />
         ) : (
           <p className="text-sm text-subtle">

@@ -94,7 +94,7 @@ function FirebaseSetupNotice() {
         <a href="https://console.firebase.google.com" className="text-accent underline" target="_blank" rel="noreferrer">
           Firebase Console
         </a>
-        , enable Email/Password auth, and add these env vars:
+        , enable Email/Password and Google auth, and add these env vars:
       </p>
       <pre className="mt-3 overflow-x-auto rounded-xl bg-inset p-3 text-[11px] text-muted">
         {`VITE_FIREBASE_API_KEY=
@@ -188,6 +188,10 @@ export function LoginPage() {
         if (result.message !== 'Sign-in cancelled.') {
           setError(formatAuthError(result.message, result.code))
         }
+        return
+      }
+      if (result.status === 'redirect') {
+        setInfo('Redirecting to Google…')
         return
       }
       navigate('/', { replace: true })
@@ -434,7 +438,7 @@ export function LoginPage() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              Continue with Google
+              {mode === 'signup' ? 'Sign up with Google' : 'Continue with Google'}
             </button>
 
             {skipVerify && (

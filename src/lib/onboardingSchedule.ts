@@ -1,8 +1,7 @@
-import type { ActivityCategory, DayPlanItem, OnboardingPreferences, TimeBlock } from '../types'
-import { cascadeEntireDay } from './blockCascade'
-import { appendChainedPlanItem, createBlockPlanItem, sortPlanByTime } from './dailyPlan'
-import { clampDayMinutes, getBlocksForDate } from './dates'
-import { buildTemplatePlan } from './routineTemplates'
+import type { ActivityCategory, DayPlanItem, OnboardingPreferences } from '../types'
+import { sortPlanByTime } from './dailyPlan'
+import { samplePlanForMode } from './planSamples'
+import { clampDayMinutes } from './dates'
 
 export const DEFAULT_ONBOARDING: OnboardingPreferences = {
   wakeMinutes: 7 * 60,
@@ -59,57 +58,25 @@ export function parseNaturalLanguageSchedule(text: string): Partial<OnboardingPr
   return patch
 }
 
-function shiftBlocksMatching(
-  blocks: TimeBlock[],
-  pattern: RegExp,
-  targetStart: number,
-  date: Date,
-): TimeBlock[] {
-  const dayIds = new Set(getBlocksForDate(blocks, date).filter((b) => pattern.test(b.label)).map((b) => b.id))
-  if (dayIds.size === 0) return blocks
-
-  const ordered = getBlocksForDate(blocks, date).filter((b) => dayIds.has(b.id))
-  const delta = targetStart - Math.min(...ordered.map((b) => b.startMinutes))
-
-  return blocks.map((b) =>
-    dayIds.has(b.id) ? { ...b, startMinutes: clampDayMinutes(b.startMinutes + delta) } : b,
-  )
+/** Onboarding no longer installs a recurring schedule — only today's sample plan. */
+export function applyOnboardingToSchedule<T>(timeBlocks: T): T {
+  return timeBlocks
 }
 
-/** Apply wake/sleep/work preferences to weekday schedule blocks. */
-export function applyOnboardingToSchedule(
-  timeBlocks: TimeBlock[],
-  prefs: OnboardingPreferences,
-): TimeBlock[] {
-  const today = new Date()
-  let next = shiftBlocksMatching(timeBlocks, /wake|freshen/i, prefs.wakeMinutes, today)
-  next = next.map((b) =>
-    /sleep/i.test(b.label) && b.recurring === 'weekday'
-      ? { ...b, startMinutes: clampDayMinutes(prefs.sleepMinutes) }
-      : b,
-  )
-  return cascadeEntireDay(next, today)
-}
-
-/** Build today's daily plan from priorities and template. */
+/** Build today's daily plan from sample templates and stated priorities. */
 export function buildOnboardingDayPlan(
-  timeBlocks: TimeBlock[],
   prefs: OnboardingPreferences,
-  date: Date = new Date(),
+  realisticMode = true,
 ): DayPlanItem[] {
   const mode =
     prefs.gymDaysPerWeek >= 4 ? 'gym' : prefs.studyHoursDaily >= 3 ? 'exam' : 'weekday'
-  let plan = buildTemplatePlan(getBlocksForDate(timeBlocks, date), mode, true)
+  let plan = samplePlanForMode(mode, realisticMode, prefs.wakeMinutes)
 
   const prioritySet = new Set(prefs.priorities)
   plan = plan.filter((item) => prioritySet.has(item.category))
 
   if (plan.length < 3) {
-    const blocks = getBlocksForDate(timeBlocks, date)
-    for (const block of blocks.slice(0, 5)) {
-      if (plan.some((p) => p.kind === 'block' && p.blockId === block.id)) continue
-      plan = appendChainedPlanItem(plan, createBlockPlanItem(block))
-    }
+    plan = samplePlanForMode(mode, realisticMode, prefs.wakeMinutes).slice(0, 5)
   }
 
   return sortPlanByTime(plan)

@@ -83,10 +83,9 @@ export const DEFAULT_SUNDAY_BLOCKS: Omit<TimeBlock, 'id'>[] = [
   SLEEP_BLOCK_SUNDAY,
 ]
 
+/** New users start with no recurring schedule — daily plans come from samples each night. */
 export function createDefaultBlocks(): TimeBlock[] {
-  return [...DEFAULT_WEEKDAY_BLOCKS, ...DEFAULT_SATURDAY_BLOCKS, ...DEFAULT_SUNDAY_BLOCKS].map(
-    (b) => ({ ...b, id: createId() }),
-  )
+  return []
 }
 
 export const DEFAULT_HABITS: Habit[] = [

@@ -1,42 +1,16 @@
 import {
-  SLEEP_BLOCK_SATURDAY,
-  SLEEP_BLOCK_SUNDAY,
-  SLEEP_BLOCK_WEEKDAY,
-} from '../data/defaults'
-import {
   appendChainedPlanItem,
   createBlockPlanItem,
   getDailyPlan,
   refreshBlockTimesInPlan,
 } from './dailyPlan'
 import { formatDateKey, getBlocksForDate } from './dates'
-import { createId } from './id'
 import { alignAllSchedulesToSleep, isSleepBlock } from './sleepSchedule'
-import type { AppState, DayLog, DayPlanItem, Recurring, TimeBlock } from '../types'
+import type { AppState, DayLog, DayPlanItem, TimeBlock } from '../types'
 
-const SLEEP_TEMPLATES: Record<'weekday' | 'saturday' | 'sunday', Omit<TimeBlock, 'id'>> = {
-  weekday: SLEEP_BLOCK_WEEKDAY,
-  saturday: SLEEP_BLOCK_SATURDAY,
-  sunday: SLEEP_BLOCK_SUNDAY,
-}
-
-function hasSleepForRecurring(blocks: TimeBlock[], recurring: Recurring): boolean {
-  return blocks.some((b) => b.enabled && b.recurring === recurring && isSleepBlock(b))
-}
-
-function createSleepBlock(recurring: 'weekday' | 'saturday' | 'sunday'): TimeBlock {
-  return { ...SLEEP_TEMPLATES[recurring], id: createId() }
-}
-
-/** Append missing Sleep blocks so every day type ends with Sleep (idempotent). */
+/** Recurring sleep blocks are no longer auto-installed — sleep lives in daily plan samples. */
 export function ensureSleepBlocks(timeBlocks: TimeBlock[]): TimeBlock[] {
-  let next = [...timeBlocks]
-  for (const recurring of ['weekday', 'saturday', 'sunday'] as const) {
-    if (!hasSleepForRecurring(next, recurring)) {
-      next.push(createSleepBlock(recurring))
-    }
-  }
-  return next
+  return timeBlocks
 }
 
 function ensureSleepInPlan(
@@ -66,7 +40,7 @@ function patchTodayPlan(days: Record<string, DayLog>, timeBlocks: TimeBlock[]): 
   return { ...days, [todayKey]: { ...log, dailyPlan: nextPlan } }
 }
 
-/** Apply Sleep block (8h), align morning blocks to wake time, patch today's plan. */
+/** Align legacy block-linked plans; no new recurring blocks are added. */
 export function applySleepScheduleMigration(state: AppState): [AppState, boolean] {
   const timeBlocks = alignAllSchedulesToSleep(ensureSleepBlocks(state.timeBlocks))
   const days = patchTodayPlan(state.days, timeBlocks)

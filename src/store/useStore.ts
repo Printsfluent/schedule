@@ -17,10 +17,7 @@ import type {
   TimeBlock,
   WeeklyPlan,
 } from '../types'
-import {
-  applyOnboardingToSchedule,
-  buildOnboardingDayPlan,
-} from '../lib/onboardingSchedule'
+import { buildOnboardingDayPlan } from '../lib/onboardingSchedule'
 import { computeUnlockedAchievements } from '../lib/achievements'
 import { computeWakeDelayMinutes } from '../lib/wakeDelay'
 import { applyBlockCascadeOnDay, cascadeEntireDay } from '../lib/blockCascade'
@@ -670,15 +667,13 @@ export function useStore() {
 
   const completeOnboarding = useCallback((prefs: OnboardingPreferences) => {
     setState((s) => {
-      const timeBlocks = applyOnboardingToSchedule(s.timeBlocks, prefs)
       const todayKey = formatDateKey(new Date())
-      const plan = buildOnboardingDayPlan(timeBlocks, prefs)
+      const plan = buildOnboardingDayPlan(prefs, s.settings.realisticMode)
       const log = s.days[todayKey] ?? emptyDayLog(todayKey)
       const scheduleMode: ScheduleMode =
         prefs.gymDaysPerWeek >= 4 ? 'gym' : prefs.studyHoursDaily >= 3 ? 'exam' : 'weekday'
       return {
         ...s,
-        timeBlocks,
         onboardingDone: true,
         unlockedAchievements: [...new Set([...(s.unlockedAchievements ?? []), 'onboarding'])],
         settings: {

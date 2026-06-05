@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { PlanTimeControls } from './PlanTimeControls'
 import {
   appendChainedPlanItem,
-  cartHasBlock,
-  createBlockPlanItem,
   createCustomPlanItem,
   defaultCustomStartMinutes,
   endOfPlan,
@@ -11,19 +9,18 @@ import {
   sortPlanByTime,
   updatePlanItemTime,
 } from '../lib/dailyPlan'
-import { formatDisplayDate, formatTime } from '../lib/dates'
+import { formatDisplayDate } from '../lib/dates'
 import {
-  buildMorningRoutineTemplate,
-  buildNightRoutineTemplate,
-  buildTemplatePlan,
-} from '../lib/routineTemplates'
-import { CATEGORY_COLORS, CATEGORY_LABELS, type ActivityCategory, type DayPlanItem, type ScheduleMode, type TimeBlock } from '../types'
+  getPlanSample,
+  PLAN_ACTIVITY_SAMPLES,
+  sampleActivityToPlanItem,
+  type PlanSampleId,
+} from '../lib/planSamples'
+import { CATEGORY_COLORS, CATEGORY_LABELS, type ActivityCategory, type DayPlanItem } from '../types'
 
 interface Props {
   planDate: Date
-  blocks: TimeBlock[]
   initialPlan: DayPlanItem[]
-  scheduleMode: ScheduleMode
   realisticMode: boolean
   /** Evening flow targets tomorrow; morning flow fills today when empty. */
   variant?: 'today' | 'tomorrow'
@@ -32,20 +29,18 @@ interface Props {
 
 const CUSTOM_CATEGORIES: ActivityCategory[] = ['work', 'study', 'health', 'social', 'rest', 'life']
 
-const TEMPLATE_BUTTONS: { id: string; label: string; apply: (blocks: TimeBlock[], mode: ScheduleMode, realistic: boolean) => DayPlanItem[] }[] = [
-  { id: 'weekday', label: 'Weekday', apply: (b, m, r) => buildTemplatePlan(b, m === 'weekday' ? m : 'weekday', r) },
-  { id: 'weekend', label: 'Weekend', apply: (b) => buildTemplatePlan(b, 'weekend', false) },
-  { id: 'exam', label: 'Exam', apply: (b, _, r) => buildTemplatePlan(b, 'exam', r) },
-  { id: 'gym', label: 'Gym day', apply: (b, _, r) => buildTemplatePlan(b, 'gym', r) },
-  { id: 'morning', label: 'Morning only', apply: (b) => buildMorningRoutineTemplate(b) },
-  { id: 'night', label: 'Wind down', apply: (b) => buildNightRoutineTemplate(b) },
+const TEMPLATE_BUTTONS: { id: PlanSampleId; label: string }[] = [
+  { id: 'weekday', label: 'Weekday sample' },
+  { id: 'weekend', label: 'Weekend sample' },
+  { id: 'exam', label: 'Exam sample' },
+  { id: 'gym', label: 'Gym day sample' },
+  { id: 'morning', label: 'Morning only' },
+  { id: 'night', label: 'Wind down' },
 ]
 
 export function MorningPlanOverlay({
   planDate,
-  blocks,
   initialPlan,
-  scheduleMode,
   realisticMode,
   variant = 'tomorrow',
   onContinue,
@@ -57,13 +52,21 @@ export function MorningPlanOverlay({
   const [customStartMinutes, setCustomStartMinutes] = useState(defaultCustomStartMinutes)
   const [customDuration, setCustomDuration] = useState(30)
 
-  const addBlock = (block: TimeBlock) => {
-    if (cartHasBlock(cart, block.id)) return
+  const addSample = (label: string, category: ActivityCategory, durationMinutes: number) => {
     setCart((items) => {
-      const next = appendChainedPlanItem(items, createBlockPlanItem(block))
+      const next = appendChainedPlanItem(
+        items,
+        sampleActivityToPlanItem({ label, category, durationMinutes }, endOfPlan(items) || customStartMinutes),
+      )
       setCustomStartMinutes(endOfPlan(next))
       return next
     })
+  }
+
+  const applyTemplate = (id: PlanSampleId) => {
+    const next = getPlanSample(id, { realisticMode: id === 'weekday' || id === 'exam' || id === 'gym' ? realisticMode : false })
+    setCart(sortPlanByTime(next))
+    setCustomStartMinutes(endOfPlan(next))
   }
 
   const addCustom = () => {
@@ -96,19 +99,21 @@ export function MorningPlanOverlay({
     })
   }
 
+  const hasActivity = (label: string) => cart.some((item) => item.label === label)
+
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-base">
       <div className="shrink-0 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-3">
         <div className="mx-auto max-w-sm text-center">
           <div className="text-4xl">🛒</div>
           <p className="mt-3 text-sm font-medium text-accent">
-            {isToday ? "Plan today" : 'Plan tomorrow'}
+            {isToday ? 'Plan today' : 'Plan tomorrow'}
           </p>
           <h1 className="mt-1 text-xl font-bold tracking-tight">
             {isToday ? "Build today's plan" : "Add to tomorrow's plan"}
           </h1>
           <p className="mt-1 text-xs text-subtle">
-            {formatDisplayDate(planDate)} · later items start when the previous one ends
+            {formatDisplayDate(planDate)} · pick a sample or add your own — nothing repeats automatically
           </p>
         </div>
       </div>
@@ -116,17 +121,13 @@ export function MorningPlanOverlay({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 touch-pan-y">
         <div className="mx-auto max-w-sm space-y-4">
           <section>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-faint">Quick templates</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-faint">Sample day plans</h2>
             <div className="flex flex-wrap gap-2">
               {TEMPLATE_BUTTONS.map((tpl) => (
                 <button
                   key={tpl.id}
                   type="button"
-                  onClick={() => {
-                    const next = tpl.apply(blocks, scheduleMode, realisticMode)
-                    setCart(sortPlanByTime(next))
-                    setCustomStartMinutes(endOfPlan(next))
-                  }}
+                  onClick={() => applyTemplate(tpl.id)}
                   className="rounded-full bg-inset px-3 py-1.5 text-xs font-medium text-muted"
                 >
                   {tpl.label}
@@ -136,32 +137,30 @@ export function MorningPlanOverlay({
           </section>
 
           <section>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-faint">From schedule</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-faint">Add from samples</h2>
             <div className="space-y-2">
-              {blocks.map((block) => {
-                const inCart = cartHasBlock(cart, block.id)
+              {PLAN_ACTIVITY_SAMPLES.map((sample) => {
+                const added = hasActivity(sample.label)
                 return (
                   <div
-                    key={block.id}
+                    key={sample.label}
                     className="flex items-center gap-3 rounded-2xl border border-border bg-inset p-3"
                   >
                     <div
                       className="size-2.5 shrink-0 rounded-full"
-                      style={{ background: CATEGORY_COLORS[block.category] }}
+                      style={{ background: CATEGORY_COLORS[sample.category] }}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{block.label}</div>
-                      <div className="text-xs text-faint">
-                        Default {formatTime(block.startMinutes)} · {block.durationMinutes}m
-                      </div>
+                      <div className="truncate text-sm font-medium">{sample.label}</div>
+                      <div className="text-xs text-faint">{sample.durationMinutes}m</div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => addBlock(block)}
-                      disabled={inCart}
+                      onClick={() => addSample(sample.label, sample.category, sample.durationMinutes)}
+                      disabled={added}
                       className="shrink-0 rounded-xl bg-accent-soft px-3 py-2 text-sm font-semibold text-accent disabled:opacity-30"
                     >
-                      {inCart ? 'Added' : '+ Add'}
+                      {added ? 'Added' : '+ Add'}
                     </button>
                   </div>
                 )
@@ -223,7 +222,7 @@ export function MorningPlanOverlay({
           </div>
 
           {cart.length === 0 ? (
-            <p className="mb-3 text-xs text-faint">Nothing yet — add blocks or type your own above.</p>
+            <p className="mb-3 text-xs text-faint">Nothing yet — tap a sample day or add activities above.</p>
           ) : (
             <div className="mb-3 max-h-48 space-y-2 overflow-y-auto overscroll-contain touch-pan-y">
               {sortPlanByTime(cart).map((item, index) => (

@@ -110,26 +110,9 @@ export function hasUserPickedPlan(log: DayLog | undefined): boolean {
   return (log?.dailyPlan?.length ?? 0) > 0
 }
 
-/** Recurring weekday/weekend blocks as plan-shaped items for display when nothing was picked. */
-export function buildRecurringPlanItems(blocks: TimeBlock[]): DayPlanItem[] {
-  return sortPlanByTime(
-    blocks.map((block) => ({
-      id: `recurring-${block.id}`,
-      kind: 'block' as const,
-      blockId: block.id,
-      label: block.label,
-      category: block.category,
-      startMinutes: block.startMinutes,
-      durationMinutes: block.durationMinutes,
-    })),
-  )
-}
-
-/** Picked plan for the day, or recurring schedule when the user skipped planning the night before. */
-export function getEffectivePlan(log: DayLog | undefined, blocks: TimeBlock[]): DayPlanItem[] {
-  const picked = getDailyPlan(log)
-  if (picked.length > 0) return picked
-  return buildRecurringPlanItems(blocks)
+/** Picked plan for the day only — no automatic weekday/weekend schedule. */
+export function getEffectivePlan(log: DayLog | undefined, _blocks: TimeBlock[]): DayPlanItem[] {
+  return getDailyPlan(log)
 }
 
 export function cartHasBlock(cart: DayPlanItem[], blockId: string) {
@@ -385,14 +368,8 @@ export function planSummarySubtitle(
   todayKey: string,
 ): string {
   const entries = buildPlanDisplayEntries(log, blocks)
-  if (entries.length === 0) return 'Add blocks in Schedule'
-  const picked = hasUserPickedPlan(log)
+  if (entries.length === 0) return 'Plan tonight to set tomorrow'
   const count = entries.length
-  if (!picked) {
-    return dateKey === todayKey
-      ? `${count} from weekly schedule`
-      : `${count} from weekly schedule`
-  }
   if (dateKey !== todayKey) return `${count} picked for this day`
   return `${count} picked for today`
 }

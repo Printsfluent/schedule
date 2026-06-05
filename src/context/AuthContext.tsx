@@ -9,15 +9,14 @@ import {
 } from 'react'
 import {
   createUserWithEmailAndPassword,
-  GoogleAuthProvider,
   onAuthStateChanged,
   sendEmailVerification,
   signInWithEmailAndPassword,
-  signInWithPopup,
   signOut as firebaseSignOut,
   updateProfile,
   type User,
 } from 'firebase/auth'
+import { completeGoogleRedirectSignIn, signInWithGoogleAuth } from '../lib/auth/googleSignIn'
 import { skipEmailVerification } from '../lib/auth/config'
 import { messageFromUnknownError } from '../lib/auth/errors'
 import { applyMandatoryLoginEpoch } from '../lib/auth/mandatoryLoginEpoch'
@@ -48,6 +47,7 @@ export type SignUpResult =
 export type SignInResult =
   | { status: 'signed_in' }
   | { status: 'verify_email' }
+  | { status: 'redirect' }
   | { status: 'error'; message: string; code?: string }
 
 type AuthContextValue = {
@@ -118,8 +118,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         await applyAuthSessionResetIfNeeded(auth)
         await waitForAuthPersistence()
+        const redirectCredential = await completeGoogleRedirectSignIn(auth)
         if (!cancelled) {
-          applyFirebaseUser(auth.currentUser)
+          if (redirectCredential?.user) {
+            applyFirebaseUser(redirectCredential.user)
+          } else {
+            applyFirebaseUser(auth.currentUser)
+          }
           setLoading(false)
         }
       } catch {
@@ -210,8 +215,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const credential = await signInWithPopup(auth, new GoogleAuthProvider())
-      applyFirebaseUser(credential.user)
+      const result = await signInWithGoogleAuth(auth)
+      if (result.kind === 'redirect') {
+        return { status: 'redirect' }
+      }
+      applyFirebaseUser(result.credential.user)
       return { status: 'signed_in' }
     } catch (err) {
       const { message, code } = messageFromUnknownError(err)
