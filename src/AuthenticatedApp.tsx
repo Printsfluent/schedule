@@ -156,10 +156,10 @@ export default function AuthenticatedApp() {
     <AlarmActionsContext.Provider
       value={{ triggerTestAlarm, scheduleTestAlarm, clearFiredToday }}
     >
-      <div className="mx-auto min-h-screen min-h-[100dvh] max-w-lg bg-base text-fg">
+      <div className="mx-auto flex h-[100dvh] max-h-[100dvh] max-w-lg flex-col overflow-hidden bg-base text-fg">
         {!appBlocked && (
           <>
-            <main className="pb-[calc(5.25rem+env(safe-area-inset-bottom))]">
+            <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <AppHeader />
               <Routes>
                 <Route path="/" element={<DashboardPage />} />

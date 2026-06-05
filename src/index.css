@@ -66,11 +66,16 @@ html[data-theme='light'] {
   -webkit-tap-highlight-color: transparent;
 }
 
+html,
+body {
+  height: 100%;
+  height: 100dvh;
+  height: calc(var(--vh, 1vh) * 100);
+  overflow: hidden;
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
-  min-height: 100dvh;
-  min-height: calc(var(--vh, 1vh) * 100);
   background: var(--rhythm-bg);
   color: var(--rhythm-fg);
   font-family: var(--font-sans);
@@ -80,9 +85,10 @@ body {
 }
 
 #root {
-  min-height: 100vh;
-  min-height: 100dvh;
-  min-height: calc(var(--vh, 1vh) * 100);
+  height: 100%;
+  height: 100dvh;
+  height: calc(var(--vh, 1vh) * 100);
+  overflow: hidden;
 }
 
 @keyframes fade-in {

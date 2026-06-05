@@ -314,7 +314,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] overflow-y-auto bg-base px-4 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
+    <div className="h-full overflow-y-auto overscroll-contain bg-base px-4 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
       <div className="mx-auto flex w-full max-w-sm flex-col gap-6 py-4">
         <div className="flex flex-col items-center text-center">
           <RhythmLogo className="size-14 rounded-2xl" />
