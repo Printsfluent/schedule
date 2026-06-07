@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { PlanTimeControls } from './PlanTimeControls'
 import {
-  appendChainedPlanItem,
   createCustomPlanItem,
   defaultCustomStartMinutes,
   endOfPlan,
+  insertChainedPlanItem,
+  movePlanItem,
   recascadeEntirePlan,
+  sanitizeDailyPlan,
   sortPlanByTime,
   updatePlanItemTime,
 } from '../lib/dailyPlan'
@@ -46,7 +48,7 @@ export function MorningPlanOverlay({
   onContinue,
 }: Props) {
   const isToday = variant === 'today'
-  const [cart, setCart] = useState<DayPlanItem[]>(() => sortPlanByTime(initialPlan))
+  const [cart, setCart] = useState<DayPlanItem[]>(() => sanitizeDailyPlan(sortPlanByTime(initialPlan)))
   const [customLabel, setCustomLabel] = useState('')
   const [customCategory, setCustomCategory] = useState<ActivityCategory>('life')
   const [customStartMinutes, setCustomStartMinutes] = useState(defaultCustomStartMinutes)
@@ -54,7 +56,7 @@ export function MorningPlanOverlay({
 
   const addSample = (label: string, category: ActivityCategory, durationMinutes: number) => {
     setCart((items) => {
-      const next = appendChainedPlanItem(
+      const next = insertChainedPlanItem(
         items,
         sampleActivityToPlanItem({ label, category, durationMinutes }, endOfPlan(items) || customStartMinutes),
       )
@@ -64,8 +66,10 @@ export function MorningPlanOverlay({
   }
 
   const applyTemplate = (id: PlanSampleId) => {
-    const next = getPlanSample(id, { realisticMode: id === 'weekday' || id === 'exam' || id === 'gym' ? realisticMode : false })
-    setCart(sortPlanByTime(next))
+    const next = sanitizeDailyPlan(
+      getPlanSample(id, { realisticMode: id === 'weekday' || id === 'exam' || id === 'gym' ? realisticMode : false }),
+    )
+    setCart(next)
     setCustomStartMinutes(endOfPlan(next))
   }
 
@@ -73,7 +77,7 @@ export function MorningPlanOverlay({
     const label = customLabel.trim()
     if (!label) return
     setCart((items) => {
-      const next = appendChainedPlanItem(
+      const next = insertChainedPlanItem(
         items,
         createCustomPlanItem(label, customCategory, customStartMinutes, customDuration),
       )
@@ -94,6 +98,14 @@ export function MorningPlanOverlay({
   const removeItem = (id: string) => {
     setCart((items) => {
       const next = recascadeEntirePlan(items.filter((item) => item.id !== id))
+      setCustomStartMinutes(endOfPlan(next))
+      return next
+    })
+  }
+
+  const shiftItem = (id: string, direction: 'up' | 'down') => {
+    setCart((items) => {
+      const next = movePlanItem(items, id, direction)
       setCustomStartMinutes(endOfPlan(next))
       return next
     })
@@ -225,7 +237,7 @@ export function MorningPlanOverlay({
             <p className="mb-3 text-xs text-faint">Nothing yet — tap a sample day or add activities above.</p>
           ) : (
             <div className="mb-3 max-h-48 space-y-2 overflow-y-auto overscroll-contain touch-pan-y">
-              {sortPlanByTime(cart).map((item, index) => (
+              {cart.map((item, index) => (
                 <div key={item.id} className="rounded-xl bg-inset px-3 py-2">
                   <div className="flex items-start gap-2">
                     <span className="mt-1.5 w-4 shrink-0 text-center text-[10px] font-medium text-faint">
@@ -245,14 +257,34 @@ export function MorningPlanOverlay({
                         onDurationChange={(durationMinutes) => patchItem(item.id, { durationMinutes })}
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(item.id)}
-                      className="shrink-0 rounded-lg px-2 py-1 text-xs text-[#ff8a8a]"
-                      aria-label={`Remove ${item.label}`}
-                    >
-                      ✕
-                    </button>
+                    <div className="flex shrink-0 flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() => shiftItem(item.id, 'up')}
+                        disabled={index === 0}
+                        className="rounded-lg bg-inset-2 px-2 py-1 text-xs text-subtle disabled:opacity-30"
+                        aria-label={`Move ${item.label} up`}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => shiftItem(item.id, 'down')}
+                        disabled={index === cart.length - 1}
+                        className="rounded-lg bg-inset-2 px-2 py-1 text-xs text-subtle disabled:opacity-30"
+                        aria-label={`Move ${item.label} down`}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.id)}
+                        className="rounded-lg px-2 py-1 text-xs text-[#ff8a8a]"
+                        aria-label={`Remove ${item.label}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -261,7 +293,7 @@ export function MorningPlanOverlay({
 
           <button
             type="button"
-            onClick={() => onContinue(sortPlanByTime(cart))}
+            onClick={() => onContinue(sanitizeDailyPlan(cart))}
             disabled={cart.length === 0}
             className="w-full rounded-2xl bg-accent py-4 text-base font-bold text-accent-text disabled:opacity-40 active:scale-[0.98] transition-transform"
           >

@@ -55,6 +55,10 @@ export function endOfPlan(plan: DayPlanItem[]): number {
   return clampDayMinutes(last.startMinutes + last.durationMinutes)
 }
 
+export function isSleepPlanItem(item: DayPlanItem): boolean {
+  return /^sleep$/i.test(item.label.trim())
+}
+
 export function appendChainedPlanItem(plan: DayPlanItem[], newItem: DayPlanItem): DayPlanItem[] {
   if (plan.length === 0) return [newItem]
   const ordered = sortPlanByTime(plan)
@@ -63,6 +67,56 @@ export function appendChainedPlanItem(plan: DayPlanItem[], newItem: DayPlanItem)
     startMinutes: endOfPlan(ordered),
   }
   return sortPlanByTime([...ordered, chained])
+}
+
+/** Chain a new item before overnight sleep so it does not land at 23:59 on top of sleep. */
+export function insertChainedPlanItem(plan: DayPlanItem[], newItem: DayPlanItem): DayPlanItem[] {
+  const sleepIdx = plan.findIndex(isSleepPlanItem)
+  if (sleepIdx < 0) return appendChainedPlanItem(plan, newItem)
+
+  let next = appendChainedPlanItem(plan.slice(0, sleepIdx), newItem)
+  for (const item of plan.slice(sleepIdx)) {
+    next = appendChainedPlanItem(next, item)
+  }
+  return recascadeEntirePlan(next)
+}
+
+export function movePlanItem(
+  plan: DayPlanItem[],
+  itemId: string,
+  direction: 'up' | 'down',
+): DayPlanItem[] {
+  const idx = plan.findIndex((item) => item.id === itemId)
+  if (idx < 0) return plan
+  const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+  if (swapIdx < 0 || swapIdx >= plan.length) return plan
+
+  const next = [...plan]
+  ;[next[idx], next[swapIdx]] = [next[swapIdx], next[idx]]
+  return recascadeEntirePlan(next)
+}
+
+export function dedupeSleepInPlan(plan: DayPlanItem[]): DayPlanItem[] {
+  const sleeps = plan.filter(isSleepPlanItem)
+  if (sleeps.length <= 1) return plan
+
+  const keepId = [...sleeps].sort((a, b) => a.startMinutes - b.startMinutes)[0].id
+  return plan.filter((item) => !isSleepPlanItem(item) || item.id === keepId)
+}
+
+/** Remove duplicate sleep and fix chained times on load/save. */
+export function sanitizeDailyPlan(
+  plan: DayPlanItem[],
+  timeBlocks: TimeBlock[] = [],
+  forDate?: Date,
+): DayPlanItem[] {
+  if (plan.length === 0) return plan
+  let next = dedupeSleepInPlan(plan)
+  if (timeBlocks.length > 0 && forDate) {
+    next = refreshBlockTimesInPlan(next, timeBlocks, forDate)
+  }
+  next = repairOverlappingPlanTimes(next)
+  return recascadeEntirePlan(next)
 }
 
 export function recascadeEntirePlan(plan: DayPlanItem[]): DayPlanItem[] {
@@ -194,7 +248,7 @@ export function buildPlanDisplayEntries(
   log: DayLog | undefined,
   blocks: TimeBlock[],
 ): PlanDisplayEntry[] {
-  const plan = repairOverlappingPlanTimes(getEffectivePlan(log, blocks))
+  const plan = repairOverlappingPlanTimes(dedupeSleepInPlan(getEffectivePlan(log, blocks)))
   if (plan.length === 0) return []
 
   const blockMap = new Map(blocks.map((b) => [b.id, b]))

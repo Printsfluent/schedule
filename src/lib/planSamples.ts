@@ -1,6 +1,8 @@
 import {
   appendChainedPlanItem,
   createCustomPlanItem,
+  isSleepPlanItem,
+  recascadeEntirePlan,
   sortPlanByTime,
 } from './dailyPlan'
 import type { ActivityCategory, DayPlanItem, ScheduleMode } from '../types'
@@ -117,13 +119,20 @@ export function getPlanSample(
   const entries = [...(SAMPLE_BY_ID[id] ?? WEEKDAY_SAMPLE)]
   let plan = buildFromEntries(entries, options.wakeMinutes ?? 6 * 60 + 30)
   if (options.realisticMode && (id === 'weekday' || id === 'exam' || id === 'gym')) {
+    const sleepIdx = plan.findIndex(isSleepPlanItem)
+    const beforeSleep = sleepIdx >= 0 ? plan.slice(0, sleepIdx) : plan
+    const sleepTail = sleepIdx >= 0 ? plan.slice(sleepIdx) : []
+    let next = beforeSleep
     for (const extra of REALISTIC_EXTRAS) {
-      plan = appendChainedPlanItem(
-        plan,
+      next = appendChainedPlanItem(
+        next,
         createCustomPlanItem(extra.label, extra.category, 0, extra.durationMinutes),
       )
     }
-    plan = sortPlanByTime(plan)
+    for (const item of sleepTail) {
+      next = appendChainedPlanItem(next, item)
+    }
+    plan = recascadeEntirePlan(next)
   }
   return plan
 }

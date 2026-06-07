@@ -21,7 +21,7 @@ import { buildOnboardingDayPlan } from '../lib/onboardingSchedule'
 import { computeUnlockedAchievements } from '../lib/achievements'
 import { computeWakeDelayMinutes } from '../lib/wakeDelay'
 import { applyBlockCascadeOnDay, cascadeEntireDay } from '../lib/blockCascade'
-import { refreshBlockTimesInPlan } from '../lib/dailyPlan'
+import { refreshBlockTimesInPlan, sanitizeDailyPlan } from '../lib/dailyPlan'
 import { emptyDayLog, formatDateKey, getBlocksForDate, parseDateKey } from '../lib/dates'
 import { applyAutoHabitsToLog } from '../lib/habitTracking'
 import { addXp, defaultGamification, xpForCategory } from '../lib/gamification'
@@ -149,11 +149,13 @@ function migrate(raw: Partial<AppState>): AppState {
           ...record,
           wakeCompleted: record.wakeCompleted ?? false,
           dailyPlan: Array.isArray(record.dailyPlan)
-            ? record.dailyPlan.map((item) => ({
-                ...item,
-                startMinutes: item.startMinutes ?? 9 * 60,
-                durationMinutes: item.durationMinutes ?? 30,
-              }))
+            ? sanitizeDailyPlan(
+                record.dailyPlan.map((item) => ({
+                  ...item,
+                  startMinutes: item.startMinutes ?? 9 * 60,
+                  durationMinutes: item.durationMinutes ?? 30,
+                })),
+              )
             : [],
           morningSleepFeedbackDone:
             record.morningSleepFeedbackDone ??
@@ -344,7 +346,15 @@ function getDay(dateKey: string): DayLog {
 
 function patchDay(dateKey: string, patch: Partial<DayLog>) {
   setState((s) => {
-    const log = enrichDayLog(s, dateKey, { ...getDay(dateKey), ...patch, date: dateKey })
+    const existing = s.days[dateKey] ?? emptyDayLog(dateKey)
+    let merged: DayLog = { ...existing, ...patch, date: dateKey }
+    if (patch.dailyPlan) {
+      merged = {
+        ...merged,
+        dailyPlan: sanitizeDailyPlan(patch.dailyPlan, s.timeBlocks, parseDateKey(dateKey)),
+      }
+    }
+    const log = enrichDayLog(s, dateKey, merged)
     return {
       ...s,
       days: {
